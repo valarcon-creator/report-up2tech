@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Report Diário — UP2Tech</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh;}
+.header{background:#0d1117;padding:14px 24px;color:white;display:flex;align-items:center;justify-content:space-between;}
+.header h1{font-size:16px;font-weight:700;}
+.header p{font-size:11px;color:#7986a3;margin-top:2px;}
+.wrap{max-width:680px;margin:0 auto;padding:20px 16px;}
+.card{background:white;border-radius:10px;border:1px solid #e2e8f0;padding:16px 18px;margin-bottom:12px;}
+.sec{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:12px;}
+.manager-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9;}
+.manager-row:last-child{border-bottom:none;}
+.avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.mi{flex:1;}.mn{font-size:13px;font-weight:600;}.mc{font-size:11px;color:#94a3b8;margin-top:1px;}
+.badge{padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.bok{background:#f0fdf4;color:#166534;}.bpend{background:#f8fafc;color:#94a3b8;}
+.btn{padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid #e2e8f0;background:white;color:#1e293b;}
+.btn-primary{background:#075e54;color:white;border-color:#075e54;}
+.btn-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.wpp{background:#e5ddd5;border-radius:10px;overflow:hidden;border:1px solid #d1c4b8;margin-top:12px;}
+.wb{background:#075e54;padding:9px 13px;display:flex;align-items:center;gap:7px;}
+.wbn{color:white;font-size:13px;font-weight:600;}
+.wbd{padding:10px;display:flex;justify-content:flex-end;}
+.wbub{background:white;border-radius:10px 2px 10px 10px;padding:9px 11px;max-width:92%;font-size:12px;line-height:1.7;color:#1e293b;white-space:pre-wrap;word-break:break-word;box-shadow:0 1px 2px rgba(0,0,0,.1);}
+.btn-copy{background:#25d366;color:white;border:none;width:100%;padding:12px;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px;}
+.loading{text-align:center;padding:2rem;color:#94a3b8;font-size:13px;}
+.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:10px 14px;border-radius:8px;font-size:12px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="header">
+  <div><h1>📊 Report Diário de Marketplace — UP2Tech</h1><p id="data-ref"></p></div>
+  <button class="btn" onclick="carregar()">🔄 Atualizar</button>
+</div>
+<div class="wrap">
+  <div class="card">
+    <div class="sec">Status dos gerentes hoje</div>
+    <div id="status-list"><div class="loading">Carregando...</div></div>
+    <div class="btn-row">
+      <button class="btn" onclick="carregar()">🔄 Atualizar</button>
+      <button class="btn btn-primary" onclick="gerar()">📩 Gerar mensagem</button>
+    </div>
+  </div>
+  <div id="report-area"></div>
+</div>
+<script>
+const SHEET_ID='1wWrnP9z0t2dl9tb-B7rYpE1iGF8PUc_CwiETflJUPoQ';
+const SHEET_NAME='Respostas ao formulário 1';
+const GS=[
+  {n:'Fabio',  cor:'#185FA5',c:['Magazine Luiza','Zema','Banco Inter']},
+  {n:'Suellen',cor:'#993556',c:['Itaú Shop','Carrefour','Kabum','Martins']},
+  {n:'Juliana',cor:'#854F0B',c:['Fast Shop','TikTok Shop','Next']},
+  {n:'Levi',   cor:'#3B6D11',c:['Amazon']},
+];
+let D={};
+
+function fmtDate(){
+  const d=new Date();d.setDate(d.getDate()-1);
+  const dias=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  const meses=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  return`${dias[d.getDay()]}, ${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
+}
+document.getElementById('data-ref').textContent='Referência: '+fmtDate();
+
+async function carregar(){
+  document.getElementById('status-list').innerHTML='<div class="loading">🔄 Buscando respostas...</div>';
+  try{
+    const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+    const res=await fetch(url);
+    const text=await res.text();
+    const json=JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
+    D={};
+    (json.table.rows||[]).forEach(row=>{
+      if(!row.c||!row.c[1]||!row.c[1].v)return;
+      const nome=row.c[1].v.toString().trim();
+      D[nome]={
+        fat: row.c[2]?(String(row.c[2].f||row.c[2].v||'')):'',
+        meta:row.c[3]?(String(row.c[3].f||row.c[3].v||'')):'',
+        pos: row.c[4]?(row.c[4].v||''):'',
+        neg: row.c[5]?(row.c[5].v||''):'',
+        plano:row.c[6]?(row.c[6].v||''):'',
+      };
+    });
+    renderStatus();
+  }catch(e){
+    document.getElementById('status-list').innerHTML=`<div class="err"><strong>Erro ao carregar:</strong> ${e.message}<br>Verifique se a planilha está compartilhada como "Qualquer pessoa com o link pode ver".</div>`;
+  }
+}
+
+function renderStatus(){
+  const html=GS.map(g=>{
+    const d=D[g.n];const ok=d&&d.fat;
+    return`<div class="manager-row">
+      <div class="avatar" style="background:${g.cor}22;color:${g.cor}">${g.n.substring(0,2).toUpperCase()}</div>
+      <div class="mi"><div class="mn">${g.n}</div><div class="mc">${g.c.join(' · ')}${ok?' — '+d.fat:''}</div></div>
+      <span class="badge ${ok?'bok':'bpend'}">${ok?'✅ Preenchido':'⏳ Pendente'}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('status-list').innerHTML=html;
+}
+
+function gerar(){
+  const pre=GS.filter(g=>D[g.n]&&D[g.n].fat);
+  if(!pre.length){document.getElementById('report-area').innerHTML='<div class="card"><div class="err">Nenhum gerente preencheu ainda. Clique em Atualizar.</div></div>';return;}
+  const L=[];
+  L.push(`📊 *REPORT DIÁRIO DE MARKETPLACE*`);
+  L.push(`📅 ${fmtDate()}`);
+  L.push(`─────────────────────`);L.push('');
+  L.push(`*VISÃO GERAL*`);
+  pre.forEach(g=>{const d=D[g.n];L.push(`• ${g.n}: *${d.fat}*${d.meta?' (meta: '+d.meta+')':''}`);});
+  pre.forEach(g=>{
+    const d=D[g.n];
+    L.push('');L.push(`─────────────────────`);
+    L.push(`*${g.n.toUpperCase()} — ${g.c.join(', ')}*`);
+    if(d.pos){L.push('');L.push(`✅ *Destaques:*`);d.pos.split('\n').filter(Boolean).forEach(l=>L.push(`• ${l.trim()}`));}
+    if(d.neg){L.push('');L.push(`⚠️ *Pontos de Atenção:*`);d.neg.split('\n').filter(Boolean).forEach(l=>L.push(`• ${l.trim()}`));}
+    if(d.plano){L.push('');L.push(`📋 *Plano de Ação:*`);d.plano.split('\n').filter(Boolean).forEach((l,i)=>L.push(`${i+1}. ${l.trim()}`));}
+  });
+  L.push('');L.push(`─────────────────────`);
+  const msg=L.join('\n');
+  window._msg=msg;
+  document.getElementById('report-area').innerHTML=`<div class="card">
+    <div class="sec">Preview — mensagem para o VP</div>
+    <div class="wpp">
+      <div class="wb"><div class="avatar" style="background:#25d366;color:white;font-size:10px;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">VP</div>
+      <div class="wbn">VP — UP2Tech</div></div>
+      <div class="wbd"><div class="wbub">${msg.replace(/\n/g,'<br>')}</div></div>
+    </div>
+    <button class="btn-copy" id="btn-copy" onclick="copiar()">Copiar mensagem para WhatsApp</button>
+  </div>`;
+}
+
+async function copiar(){
+  try{
+    await navigator.clipboard.writeText(window._msg||'');
+    const b=document.getElementById('btn-copy');
+    b.textContent='✅ Copiado! Cole no WhatsApp.';
+    setTimeout(()=>b.textContent='Copiar mensagem para WhatsApp',2500);
+  }catch(e){alert('Selecione o texto e copie manualmente.');}
+}
+carregar();
+</script>
+</body>
+</html>
