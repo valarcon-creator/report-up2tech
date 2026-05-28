@@ -317,8 +317,8 @@ async function loadData(){
       const r=dataRows[i];
       if(!r||!r[0]) continue;
       const status=String(r[1]||'').trim();
-      // Só entregue — excluir devoluções
-      if(!status.toLowerCase().includes('entregue')) continue;
+      // Excluir apenas devoluções, cancelamentos e mediações com reembolso
+      const lower=status.toLowerCase(); if(lower.includes('devol') || lower.includes('cancelad') || lower.includes('reembolso') || lower.includes('recusado') || lower.includes('cancelada')) continue;
       const date=String(r[0]).trim();
       const sku=String(r[8]||r[3]||'').trim(); // SKU NOVO ou SKU
       const qtd=parseInt(r[5])||0;
