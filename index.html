@@ -155,8 +155,28 @@ async function load() {
   try {
     const rows = await fetchRows();
 
-    // Header KPI parsing skipped — using SKU-level calc (more reliable)
+    // ── Header KPIs from rows 22 & 24 (index 21 & 23)
+    // Row 22: Margem % per channel (cols 1-16)
+    // Row 24: Faturamento per channel (cols 1-16)
+    // Channel order: ML, Amazon, Shopee, VV, Magalu, Shopify, Casa&Video,
+    //   Fast Shop, Tiktok, Le Biscuit, Carrefour, Ri Happy, Kabum, Itaú Shop, Bradesco, Martins
+    const HDR_CH_ORDER = [
+      'Mercado Livre','Amazon','Shopee','Via Varejo','Magalu','Shopify',
+      'Casa & Video','Fast Shop','Tiktok Shop','Le Biscuit',
+      'Carrefour','Ri Happy','Kabum','Itaú Shop','Bradesco Shop','Martins Atacado'
+    ];
+    const rowMg  = rows[21] || [];  // row 22 (index 21): margem per channel
+    const rowFat = rows[23] || [];  // row 24 (index 23): fat per channel
     const chHdr = {};
+    // cols 1-16 in these rows = channels in HDR_CH_ORDER
+    HDR_CH_ORDER.forEach((chName, i) => {
+      const fatRaw = toNum(rowFat[i + 1]);
+      const mgRaw  = toNum(rowMg[i + 1]);
+      // gviz returns % cells as decimals (e.g. 0.2033); string "20,33%" → toNum gives 20.33
+      const mg = Math.abs(mgRaw) > 1 ? mgRaw/100 : mgRaw;
+      const meta = CH_DEF.find(c=>c.name===chName)?.meta || 0;
+      chHdr[chName] = { fat: fatRaw, meta, mg };
+    });
 
     // ── Period: rows[0] col0=start, col2=end
     const periodStart = String(rows[0]?.[0]||'').replace('Data inicial','').trim() || '';
@@ -200,12 +220,16 @@ async function load() {
       chCalc[ch] = { fat, mg_r, pct: fat>0?mg_r/fat:0 };
     });
 
-    // Use SKU-level calc for fat+margem (reliable), meta from CH_DEF
+    // Merged channel data: header fat/mg wins when available
     const chData = {};
     ALL_CH.forEach(ch => {
+      const h = chHdr[ch]||{};
       const c = chCalc[ch]||{};
-      const meta = CH_DEF.find(d=>d.name===ch)?.meta || 0;
-      chData[ch] = { fat: c.fat||0, margem: c.pct||0, meta };
+      chData[ch] = {
+        fat:   (h.fat>0) ? h.fat : c.fat||0,
+        margem:(h.mg!==0) ? h.mg : c.pct||0,
+        meta:  h.meta||0,
+      };
     });
 
     const isSE = s => s.produto.toUpperCase().includes('IPHONE') && / SE[\s\d]/.test(s.produto.toUpperCase());
