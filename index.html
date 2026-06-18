@@ -161,9 +161,18 @@ async function load() {
   try {
     const rows = await fetchRows();
 
-    // SKU data starts at row index 26
+    // SKU data: find start dynamically — look for row where col0 is a 4-5 digit integer
+    // and col2 (fat) is a large number. Falls back to row 26 if not found.
+    let skuStartIdx = 26;
+    for (let i = 20; i < Math.min(40, rows.length); i++) {
+      const r = rows[i];
+      if (!r || r.length < 3) continue;
+      const v0 = toNum(r[0]);
+      const v2 = toNum(r[2]);
+      if (v0 > 1000 && v0 < 99999 && v2 > 100) { skuStartIdx = i; break; }
+    }
     const skus = [];
-    for (let i=26; i<rows.length; i++) {
+    for (let i=skuStartIdx; i<rows.length; i++) {
       const r = rows[i];
       if (!r||r.length<8) continue;
       const sku = toNum(r[COL.SKU]);
