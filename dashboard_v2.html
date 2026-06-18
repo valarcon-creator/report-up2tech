@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard Marketplaces — up2tech</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f4f0;color:#1a1a1a;padding:24px;max-width:1100px;margin:0 auto;}
+
+/* Loading */
+#loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;gap:14px;}
+.spinner{width:40px;height:40px;border:3px solid #e5e5e5;border-top-color:#1a1a1a;border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#loading p{font-size:13px;color:#888;}
+#loading .prog{font-size:11px;color:#aaa;}
+#error{display:none;background:#fef2f2;border:0.5px solid #f5c6c6;border-radius:8px;padding:20px;margin:40px auto;max-width:500px;text-align:center;}
+#error h3{color:#b91c1c;margin-bottom:8px;font-size:14px;}
+#error pre{font-size:10px;color:#b91c1c;background:#fee;padding:8px;border-radius:4px;margin-top:8px;text-align:left;white-space:pre-wrap;}
+#dashboard{display:none;}
+#ch-detail{display:none;}
+
+/* Header */
+.header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px;padding-bottom:14px;border-bottom:1.5px solid #1a1a1a;}
+.h-eye{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#888;margin-bottom:3px;}
+.h-title{font-size:21px;font-weight:700;}
+.h-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:#e6f7ee;color:#1a6e3a;padding:2px 8px;border-radius:3px;margin-top:4px;}
+
+/* Date bar */
+.date-bar{display:flex;align-items:center;gap:8px;background:#fff;border:0.5px solid #e5e5e5;border-radius:8px;padding:8px 14px;margin-bottom:18px;flex-wrap:wrap;}
+.date-bar label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#888;}
+.date-bar input[type=date]{font-size:11px;border:0.5px solid #ddd;border-radius:4px;padding:3px 8px;color:#1a1a1a;background:#f9f8f5;}
+.btn-buscar{font-size:10px;font-weight:700;padding:5px 14px;border-radius:4px;border:none;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;background:#1a1a1a;color:#fff;}
+.btn-buscar:hover{background:#333;}
+.btn-buscar:disabled{background:#999;cursor:not-allowed;}
+.date-status{font-size:11px;color:#888;margin-left:4px;}
+
+/* Sections */
+.slbl{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#aaa;margin-bottom:8px;}
+.divider{border:none;border-top:0.5px solid #e5e5e5;margin:20px 0;}
+
+/* KPI cards */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
+.kpi{background:#fff;border:0.5px solid #e5e5e5;border-radius:8px;padding:12px 14px;}
+.kpi.alert{border-color:#f5c6c6;}
+.kl{font-size:10px;color:#888;margin-bottom:4px;}
+.kv{font-size:20px;font-weight:700;}
+.ka{font-size:10px;color:#aaa;margin-top:2px;}
+
+/* Group panels */
+.two-grp{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+.grp-panel{background:#fff;border:0.5px solid #e5e5e5;border-radius:8px;overflow:hidden;}
+.grp-head{padding:10px 14px;border-bottom:0.5px solid #eee;display:flex;justify-content:space-between;align-items:center;}
+.grp-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888;}
+.grp-summary{display:flex;gap:16px;}
+.gs-fat{font-size:18px;font-weight:700;}
+.gs-mg{font-size:12px;font-weight:600;}
+.gs-share{font-size:10px;color:#aaa;}
+
+/* Tables */
+.ch-tbl,.data-tbl{width:100%;border-collapse:collapse;font-size:11.5px;}
+.ch-tbl th,.data-tbl th{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;padding:5px 10px;border-bottom:0.5px solid #eee;text-align:left;}
+.ch-tbl th.r,.data-tbl th.r{text-align:right;}
+.ch-tbl td,.data-tbl td{padding:7px 10px;border-bottom:0.5px solid #f5f4f0;vertical-align:middle;}
+.ch-tbl td.r,.data-tbl td.r{text-align:right;}
+.ch-tbl tr:last-child td,.data-tbl tr:last-child td{border-bottom:none;}
+.data-tbl tr:nth-child(even) td{background:#fafaf8;}
+.data-tbl tr:hover td,.ch-tbl tr:hover td{background:#f5f4f0;}
+.ch-tbl tr.grp td{background:#f5f4f0;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#aaa;padding:4px 10px;}
+
+.badge{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;}
+.bg{background:#e6f7ee;color:#1a6e3a;}.br{background:#fde8e8;color:#b91c1c;}.ba{background:#fff3e0;color:#b45309;}.bb{background:#e8f0fe;color:#1a56a8;}
+.share-bar{display:flex;align-items:center;gap:5px;}
+.sbar{flex:1;height:3px;background:#eee;border-radius:2px;overflow:hidden;min-width:24px;}
+.sbfill{height:100%;border-radius:2px;}
+.spct{font-size:10px;color:#888;width:34px;text-align:right;flex-shrink:0;}
+.ch-link{cursor:pointer;color:#1a56a8;font-weight:600;border-bottom:1px dashed #93c5fd;padding-bottom:1px;}
+.ch-link:hover{color:#1e40af;}
+.rank-n{font-size:10px;color:#ccc;width:16px;}
+.panel{background:#fff;border:0.5px solid #e5e5e5;border-radius:8px;overflow:hidden;margin-bottom:18px;}
+
+/* Back button */
+.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#555;background:#fff;border:0.5px solid #ddd;border-radius:6px;padding:6px 12px;cursor:pointer;margin-bottom:16px;}
+.back-btn:hover{background:#f5f4f0;}
+
+/* SE toggle */
+.se-toggle{display:flex;background:#fff;border:0.5px solid #e5e5e5;border-radius:20px;overflow:hidden;width:fit-content;}
+.se-btn{padding:4px 12px;font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;background:#fff;color:#aaa;border:none;cursor:pointer;}
+.se-btn.active-nose{background:#f0f7f0;color:#16a34a;}
+.se-btn.active-wse{background:#fff3e0;color:#b45309;}
+
+.footer-bar{font-size:9px;color:#bbb;text-align:right;padding-top:10px;border-top:0.5px solid #e5e5e5;margin-top:8px;}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Carregando dados...</p>
+  <p class="prog" id="load-prog"></p>
+</div>
+<div id="error">
+  <h3>Erro ao carregar</h3>
+  <p id="err-msg"></p>
+  <pre id="err-detail"></pre>
+  <button onclick="loadAll()" style="margin-top:12px;padding:6px 16px;background:#1a1a1a;color:#fff;border:none;border-radius:4px;cursor:pointer">Tentar novamente</button>
+</div>
+<div id="dashboard"></div>
+<div id="ch-detail"></div>
+
+<script>
+const SHEET_ID = '1hnxVpZRALknZCN7Cp9LwWBOHB9CpNV8cD156ZqhoMjg';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwMS-oIkogIBhRp1lABJeH_kA2syhqdq4xFXb5LFeTrm5zxecfArcWMKVMlCvcZzILzsg/exec';
+
+// ── Column maps ───────────────────────────────────────────────────────────────
+const AMZN = { date:2, sku:11, prod:10, qty:14, val:16, status:4 };
+const MGLU = { date:0, sku:5,  prod:6,  qty:7,  val:8  };
+const ANMK = { date:0, mkt:1,  sku:21,  prod:18, qty:19, val:15, status:11, discount:57 };
+const DASH = { sku:0, custo:29 }; // col AE = index 29 (0-based from SKU row)
+
+// AnyMarket canal → my channel name
+const ANMK_CH = {
+  'FastShop Nova Api': 'Fast Shop',
+  'Fast Shop':         'Fast Shop',
+  'Itaú':              'Itaú Shop',
+  'Itaú Shop':         'Itaú Shop',
+  'Carrefour':         'Carrefour',
+  'Kabum':             'Kabum',
+  'KaBuM':             'Kabum',
+  'TikTok Shop':       'Tiktok Shop',
+  'Tiktok Shop':       'Tiktok Shop',
+  'Martins Atacado':   'Martins Atacado',
+};
+
+const CHANNELS_MINE   = ['Amazon','Magalu','Fast Shop','Tiktok Shop','Carrefour','Kabum','Itaú Shop','Martins Atacado'];
+const CHANNELS_OTHERS = ['Mercado Livre','Shopee','Via Varejo'];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmt = n => {
+  if (n === null || n === undefined || isNaN(n)) return 'R$ 0';
+  if (Math.abs(n)>=1e6) return 'R$ '+(n/1e6).toFixed(1)+'M';
+  if (Math.abs(n)>=1e3) return 'R$ '+Math.round(n/1e3)+'K';
+  return 'R$ '+Math.round(n).toLocaleString('pt-BR');
+};
+const pct  = n => isNaN(n) ? '0.0%' : (n*100).toFixed(1)+'%';
+const clr  = v => v>=0.15?'#16a34a':v>=0.05?'#b45309':'#b91c1c';
+const bdg  = v => v>=0.15?'bg':v>=0.05?'bb':'br';
+const fmtN = n => n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'K':Math.round(n).toString();
+
+function parseDate(v) {
+  if (!v) return null;
+  if (v instanceof Date) return v;
+  const s = String(v).trim();
+  // ISO: 2026-06-01T...
+  if (s.match(/^\d{4}-\d{2}-\d{2}/)) return new Date(s.substring(0,10));
+  // BR: 28/05/2026 07:05
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return new Date(parseInt(m[3]), parseInt(m[2])-1, parseInt(m[1]));
+  // datetime object from gviz: {v: "Date(2026,5,1,2,58,53)"}
+  const dm = s.match(/Date\((\d+),(\d+),(\d+)/);
+  if (dm) return new Date(parseInt(dm[1]), parseInt(dm[2]), parseInt(dm[3]));
+  return null;
+}
+
+function toNum(v) {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === 'number') return isNaN(v) ? 0 : v;
+  const s = String(v).replace(/R\$\s*/g,'').replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace('%','');
+  return parseFloat(s) || 0;
+}
+
+async function fetchSheet(sheetName) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('HTTP '+r.status+' — '+sheetName);
+  const txt = await r.text();
+  const m = txt.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/);
+  if (!m) throw new Error('Formato inesperado — '+sheetName);
+  const data = JSON.parse(m[1]);
+  return data.table.rows.map(row =>
+    (row && row.c) ? row.c.map(cell => {
+      if (!cell) return null;
+      if (typeof cell.v === 'number') return cell.v;
+      // gviz datetime
+      if (cell.v && typeof cell.v === 'string' && cell.v.startsWith('Date(')) {
+        const dm = cell.v.match(/Date\((\d+),(\d+),(\d+)/);
+        if (dm) return new Date(parseInt(dm[1]), parseInt(dm[2]), parseInt(dm[3]));
+      }
+      if (cell.f) return cell.f;
+      return cell.v;
+    }) : []
+  );
+}
+
+// ── Global state ──────────────────────────────────────────────────────────────
+let _orders = []; // all parsed orders
+let _costMap = {}; // sku → custo unitário
+let _dateFrom = null;
+let _dateTo   = null;
+let _seMode   = 'nose';
+
+// ── Load all data ─────────────────────────────────────────────────────────────
+async function loadAll() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('ch-detail').style.display = 'none';
+  document.getElementById('error').style.display = 'none';
+
+  try {
+    const prog = document.getElementById('load-prog');
+
+    // 1. Load cost map from Dashboard tab
+    prog.textContent = 'Carregando custos por SKU...';
+    const dashRows = await fetchSheet('Dashboard');
+    // Find SKU header row
+    let hdrIdx = dashRows.findIndex(r => r[0] && String(r[0]).trim() === 'SKU');
+    if (hdrIdx < 0) hdrIdx = 26; // fallback
+    _costMap = {};
+    for (let i = hdrIdx+1; i < dashRows.length; i++) {
+      const r = dashRows[i];
+      const sku = toNum(r[0]);
+      const custo = toNum(r[DASH.custo]);
+      if (sku > 0) _costMap[sku] = custo;
+    }
+    prog.textContent = `Custos carregados: ${Object.keys(_costMap).length} SKUs`;
+
+    // 2. Load Amazon
+    prog.textContent = 'Carregando Amazon Database...';
+    const amznRows = await fetchSheet('Amazon Database');
+    const amznOrders = [];
+    for (const r of amznRows) {
+      if (!r || !r[AMZN.sku]) continue;
+      const status = String(r[AMZN.status]||'').toLowerCase();
+      if (status === 'cancelled') continue;
+      const dt = parseDate(r[AMZN.date]);
+      const sku = toNum(r[AMZN.sku]);
+      const qty = toNum(r[AMZN.qty]);
+      const val = toNum(r[AMZN.val]) * qty;
+      if (!dt || sku <= 0 || val <= 0) continue;
+      amznOrders.push({ dt, canal:'Amazon', sku, prod:String(r[AMZN.prod]||''), qty, val });
+    }
+    prog.textContent = `Amazon: ${amznOrders.length} pedidos`;
+
+    // 3. Load Magalu
+    prog.textContent = 'Carregando Magalu Database...';
+    const mgluRows = await fetchSheet('Magalu Database');
+    const mgluOrders = [];
+    for (const r of mgluRows) {
+      if (!r || !r[MGLU.sku]) continue;
+      const dt = parseDate(r[MGLU.date]);
+      const sku = toNum(r[MGLU.sku]);
+      const qty = toNum(r[MGLU.qty]);
+      const val = toNum(r[MGLU.val]);
+      if (!dt || sku <= 0 || val <= 0) continue;
+      mgluOrders.push({ dt, canal:'Magalu', sku, prod:String(r[MGLU.prod]||''), qty, val });
+    }
+    prog.textContent = `Magalu: ${mgluOrders.length} pedidos`;
+
+    // 4. Load AnyMarket
+    prog.textContent = 'Carregando AnyMarket Database...';
+    const anmkRows = await fetchSheet('AnyMarket Database');
+    const anmkOrders = [];
+    for (const r of anmkRows) {
+      if (!r || !r[ANMK.sku]) continue;
+      const status = String(r[ANMK.status]||'').toLowerCase();
+      if (status.includes('cancel')) continue;
+      const mktRaw = String(r[ANMK.mkt]||'').trim();
+      const canal = ANMK_CH[mktRaw] || mktRaw;
+      const dt  = r[ANMK.date] instanceof Date ? r[ANMK.date] : parseDate(r[ANMK.date]);
+      const sku = toNum(r[ANMK.sku]);
+      const qty = toNum(r[ANMK.qty]);
+      const val = toNum(r[ANMK.val]);
+      if (!dt || sku <= 0 || val <= 0) continue;
+      anmkOrders.push({ dt, canal, sku, prod:String(r[ANMK.prod]||''), qty, val });
+    }
+    prog.textContent = `AnyMarket: ${anmkOrders.length} pedidos`;
+
+    _orders = [...amznOrders, ...mgluOrders, ...anmkOrders];
+
+    // Set default date range from data
+    if (_orders.length > 0) {
+      const dates = _orders.map(o => o.dt).filter(Boolean).sort((a,b)=>a-b);
+      _dateFrom = dates[0];
+      _dateTo   = dates[dates.length-1];
+    }
+
+    prog.textContent = `Total: ${_orders.length} pedidos carregados!`;
+    await new Promise(r => setTimeout(r, 500));
+
+    // Set date inputs
+    const toISO = d => d ? d.toISOString().split('T')[0] : '';
+    const fi = document.getElementById('date-from');
+    const ti = document.getElementById('date-to');
+    if (fi && _dateFrom) fi.value = toISO(_dateFrom);
+    if (ti && _dateTo)   ti.value = toISO(_dateTo);
+
+    render();
+
+  } catch(err) {
+    console.error(err);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').style.display = 'block';
+    document.getElementById('err-msg').textContent = err.message;
+    document.getElementById('err-detail').textContent = err.stack || '';
+  }
+}
+
+// ── Filter & aggregate ────────────────────────────────────────────────────────
+function filterOrders() {
+  const fi = document.getElementById('date-from');
+  const ti = document.getElementById('date-to');
+  const from = fi && fi.value ? new Date(fi.value+'T00:00:00') : null;
+  const to   = ti && ti.value ? new Date(ti.value+'T23:59:59') : null;
+  return _orders.filter(o => {
+    if (!o.dt) return false;
+    if (from && o.dt < from) return false;
+    if (to   && o.dt > to)   return false;
+    return true;
+  });
+}
+
+function aggregate(orders) {
+  // Per-canal aggregation with cost
+  const chMap = {};
+  const skuMap = {};
+  const deptMap = {};
+  const marcaMap = {};
+
+  for (const o of orders) {
+    const custo = (_costMap[o.sku] || 0) * o.qty;
+    const mg_r  = o.val - custo;
+
+    // Canal
+    if (!chMap[o.canal]) chMap[o.canal] = {fat:0, mg_r:0, qtd:0, orders:0};
+    chMap[o.canal].fat  += o.val;
+    chMap[o.canal].mg_r += mg_r;
+    chMap[o.canal].qtd  += o.qty;
+    chMap[o.canal].orders++;
+
+    // SKU
+    if (!skuMap[o.sku]) skuMap[o.sku] = {fat:0, mg_r:0, qtd:0, prod:o.prod, canais:{}};
+    skuMap[o.sku].fat  += o.val;
+    skuMap[o.sku].mg_r += mg_r;
+    skuMap[o.sku].qtd  += o.qty;
+    skuMap[o.sku].canais[o.canal] = (skuMap[o.sku].canais[o.canal]||0) + o.val;
+  }
+
+  // Compute pct
+  Object.values(chMap).forEach(v => { v.mg_pct = v.fat > 0 ? v.mg_r/v.fat : 0; });
+  Object.values(skuMap).forEach(v => { v.mg_pct = v.fat > 0 ? v.mg_r/v.fat : 0; });
+
+  const totalFat = Object.values(chMap).reduce((s,v)=>s+v.fat, 0);
+  const totalMgR = Object.values(chMap).reduce((s,v)=>s+v.mg_r, 0);
+  const totalQtd = Object.values(chMap).reduce((s,v)=>s+v.qtd, 0);
+
+  const mineFat = CHANNELS_MINE.reduce((s,ch)=>s+(chMap[ch]?.fat||0), 0);
+  const mineMgR = CHANNELS_MINE.reduce((s,ch)=>s+(chMap[ch]?.mg_r||0), 0);
+  const othFat  = Object.keys(chMap).filter(ch=>!CHANNELS_MINE.includes(ch)).reduce((s,ch)=>s+(chMap[ch]?.fat||0), 0);
+  const othMgR  = Object.keys(chMap).filter(ch=>!CHANNELS_MINE.includes(ch)).reduce((s,ch)=>s+(chMap[ch]?.mg_r||0), 0);
+
+  const topSKUs = Object.entries(skuMap).sort((a,b)=>b[1].fat-a[1].fat).slice(0,20);
+
+  return { chMap, skuMap, topSKUs, totalFat, totalMgR, totalQtd, mineFat, mineMgR, othFat, othMgR };
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const orders = filterOrders();
+  const { chMap, skuMap, topSKUs, totalFat, totalMgR, totalQtd, mineFat, mineMgR, othFat, othMgR } = aggregate(orders);
+
+  const now = new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const fi = document.getElementById('date-from');
+  const ti = document.getElementById('date-to');
+  const periodLabel = fi && ti && fi.value && ti.value
+    ? new Date(fi.value+'T12:00:00').toLocaleDateString('pt-BR') + ' a ' + new Date(ti.value+'T12:00:00').toLocaleDateString('pt-BR')
+    : 'Todos os dados';
+
+  const allChannels = [...new Set(orders.map(o=>o.canal))];
+  const othChannels = allChannels.filter(ch => !CHANNELS_MINE.includes(ch));
+
+  const chRow = (ch, groupFat) => {
+    const d = chMap[ch] || {fat:0,mg_r:0,qtd:0,mg_pct:0};
+    const share = groupFat > 0 ? d.fat/groupFat : 0;
+    const bw = Math.min(100, share*100).toFixed(1);
+    const warn = d.mg_pct < 0 ? ' <span style="color:#b91c1c">⚠</span>' : '';
+    return `<tr>
+      <td style="font-weight:500"><span class="ch-link" onclick="openChannel('${ch}')">${ch}</span>${warn}</td>
+      <td class="r">${fmt(d.fat)}</td>
+      <td class="r"><span class="badge ${bdg(d.mg_pct)}">${pct(d.mg_pct)}</span></td>
+      <td class="r">${fmt(d.mg_r)}</td>
+      <td class="r">${Math.round(d.qtd).toLocaleString('pt-BR')}</td>
+      <td class="r">R$ ${d.qtd>0?Math.round(d.fat/d.qtd).toLocaleString('pt-BR'):'-'}</td>
+      <td><div class="share-bar"><div class="sbar"><div class="sbfill" style="width:${bw}%;background:${d.mg_pct>=0.15?'#16a34a':d.mg_pct>=0.05?'#3b82f6':'#ef4444'}"></div></div><span class="spct">${(share*100).toFixed(1)}%</span></div></td>
+    </tr>`;
+  };
+
+  const skuRows = topSKUs.map(([sku,v],i) => `
+    <tr>
+      <td class="rank-n">${i+1}</td>
+      <td style="font-weight:500;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.prod}</td>
+      <td style="color:#aaa;font-size:10px">${sku}</td>
+      <td class="r">${fmt(v.fat)}</td>
+      <td class="r"><span class="badge ${bdg(v.mg_pct)}">${pct(v.mg_pct)}</span></td>
+      <td class="r" style="color:${v.mg_r>=0?'#16a34a':'#b91c1c'};font-weight:600">${fmt(v.mg_r)}</td>
+      <td class="r">${Math.round(v.qtd).toLocaleString('pt-BR')}</td>
+      <td class="r">R$ ${v.qtd>0?Math.round(v.fat/v.qtd).toLocaleString('pt-BR'):'-'}</td>
+    </tr>`).join('');
+
+  document.getElementById('dashboard').innerHTML = `
+    <div class="header">
+      <div>
+        <div class="h-eye">up2tech · Marketplace Management</div>
+        <div class="h-title">Dashboard Executivo — Marketplaces</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:12px;font-weight:600">${orders.length.toLocaleString('pt-BR')} pedidos · ${periodLabel}</div>
+        <div style="font-size:10px;color:#aaa;margin-top:2px">Atualizado ${now}</div>
+        <div><span class="h-badge">● Live — Google Sheets</span></div>
+      </div>
+    </div>
+
+    <!-- Date bar -->
+    <div class="date-bar">
+      <label>Período</label>
+      <input type="date" id="date-from" value="${fi?.value||''}">
+      <label style="font-size:11px;color:#555;font-weight:400">até</label>
+      <input type="date" id="date-to" value="${ti?.value||''}">
+      <button class="btn-buscar" onclick="applyFilter()">Buscar</button>
+      <button class="btn-buscar" style="background:#555" onclick="loadAll()">↻ Recarregar</button>
+      <span class="date-status" id="date-status">${orders.length.toLocaleString('pt-BR')} pedidos no período</span>
+    </div>
+
+    <!-- SE toggle -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+      <div class="se-toggle">
+        <button class="se-btn ${_seMode==='nose'?'active-nose':''}" onclick="setSE('nose')">s/ iPhone SE</button>
+        <button class="se-btn ${_seMode==='wse'?'active-wse':''}" onclick="setSE('wse')">c/ iPhone SE</button>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <p class="slbl">Resumo geral</p>
+    <div class="kpi-row">
+      <div class="kpi"><div class="kl">Faturamento total</div><div class="kv">${fmt(totalFat)}</div><div class="ka">${totalQtd.toLocaleString('pt-BR')} unidades</div></div>
+      <div class="kpi"><div class="kl">Margem bruta</div><div class="kv" style="color:${clr(totalFat>0?totalMgR/totalFat:0)}">${pct(totalFat>0?totalMgR/totalFat:0)}</div><div class="ka">${fmt(totalMgR)} gerados</div></div>
+      <div class="kpi"><div class="kl">Ticket médio</div><div class="kv">R$ ${totalQtd>0?Math.round(totalFat/totalQtd).toLocaleString('pt-BR'):'—'}</div><div class="ka">${allChannels.length} canais ativos</div></div>
+      <div class="kpi"><div class="kl">Meus canais</div><div class="kv">${fmt(mineFat)}</div><div class="ka">${pct(mineFat>0?mineMgR/mineFat:0)} margem · ${totalFat>0?((mineFat/totalFat)*100).toFixed(1):0}% do total</div></div>
+    </div>
+
+    <!-- Channels -->
+    <p class="slbl">Performance dos canais</p>
+    <div class="two-grp">
+      <div class="grp-panel">
+        <div class="grp-head">
+          <span class="grp-title">Meus canais</span>
+          <div class="grp-summary">
+            <div><div class="gs-fat">${fmt(mineFat)}</div><div class="gs-share">${totalFat>0?((mineFat/totalFat)*100).toFixed(1):0}% do total</div></div>
+            <div><div class="gs-mg" style="color:${clr(mineFat>0?mineMgR/mineFat:0)}">${pct(mineFat>0?mineMgR/mineFat:0)}</div><div class="gs-share">margem ponderada</div></div>
+          </div>
+        </div>
+        <table class="ch-tbl">
+          <thead><tr><th>Canal</th><th class="r">Faturamento</th><th class="r">Margem %</th><th class="r">Margem R$</th><th class="r">Qtd</th><th class="r">Ticket</th><th>Share</th></tr></thead>
+          <tbody>
+            ${CHANNELS_MINE.filter(ch=>chMap[ch]).map(ch=>chRow(ch,mineFat)).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="grp-panel">
+        <div class="grp-head">
+          <span class="grp-title">Outros canais</span>
+          <div class="grp-summary">
+            <div><div class="gs-fat">${fmt(othFat)}</div><div class="gs-share">${totalFat>0?((othFat/totalFat)*100).toFixed(1):0}% do total</div></div>
+            <div><div class="gs-mg" style="color:${clr(othFat>0?othMgR/othFat:0)}">${pct(othFat>0?othMgR/othFat:0)}</div><div class="gs-share">margem ponderada</div></div>
+          </div>
+        </div>
+        <table class="ch-tbl">
+          <thead><tr><th>Canal</th><th class="r">Faturamento</th><th class="r">Margem %</th><th class="r">Margem R$</th><th class="r">Qtd</th><th class="r">Ticket</th><th>Share</th></tr></thead>
+          <tbody>
+            ${othChannels.length > 0 ? othChannels.map(ch=>chRow(ch,othFat)).join('') : '<tr><td colspan="7" style="color:#aaa;text-align:center;padding:12px">Sem dados para outros canais no período</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Top SKUs -->
+    <p class="slbl">Top 20 SKUs — todos os canais</p>
+    <div class="panel">
+      <table class="data-tbl">
+        <thead><tr><th></th><th>Produto</th><th>SKU</th><th class="r">Faturamento</th><th class="r">Margem %</th><th class="r">Margem R$</th><th class="r">Qtd</th><th class="r">Ticket</th></tr></thead>
+        <tbody>${skuRows}</tbody>
+      </table>
+    </div>
+
+    <div class="footer-bar">Dados lidos do Google Sheets · ${now} · up2tech.com.br</div>
+  `;
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+}
+
+// ── Channel detail ────────────────────────────────────────────────────────────
+function openChannel(chName) {
+  const orders = filterOrders().filter(o => o.canal === chName);
+  if (!orders.length) return;
+
+  const fat   = orders.reduce((s,o)=>s+o.val, 0);
+  const mg_r  = orders.reduce((s,o)=>s+(o.val - (_costMap[o.sku]||0)*o.qty), 0);
+  const qtd   = orders.reduce((s,o)=>s+o.qty, 0);
+  const mg_pct= fat>0?mg_r/fat:0;
+
+  const skuMap = {};
+  for (const o of orders) {
+    const custo = (_costMap[o.sku]||0)*o.qty;
+    if (!skuMap[o.sku]) skuMap[o.sku]={fat:0,mg_r:0,qtd:0,prod:o.prod};
+    skuMap[o.sku].fat  += o.val;
+    skuMap[o.sku].mg_r += o.val - custo;
+    skuMap[o.sku].qtd  += o.qty;
+  }
+  Object.values(skuMap).forEach(v=>{ v.mg_pct = v.fat>0?v.mg_r/v.fat:0; });
+  const topSKUs = Object.entries(skuMap).sort((a,b)=>b[1].fat-a[1].fat).slice(0,15);
+  const detratores = Object.entries(skuMap).filter(([,v])=>v.mg_pct<0).sort((a,b)=>a[1].mg_r-b[1].mg_r);
+
+  document.getElementById('dashboard').style.display = 'none';
+  const det = document.getElementById('ch-detail');
+  det.style.display = 'block';
+  window.scrollTo(0,0);
+
+  det.innerHTML = `
+    <button class="back-btn" onclick="goBack()">← Voltar ao dashboard</button>
+    <div class="header">
+      <div>
+        <div class="h-eye">up2tech · ${CHANNELS_MINE.includes(chName)?'Meu canal':'Outro canal'}</div>
+        <div class="h-title">${chName}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:#aaa">${orders.length.toLocaleString('pt-BR')} pedidos · ${Object.keys(skuMap).length} SKUs</div>
+        <div><span class="h-badge">● Live — Google Sheets</span></div>
+      </div>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi"><div class="kl">Faturamento</div><div class="kv">${fmt(fat)}</div><div class="ka">${orders.length} pedidos</div></div>
+      <div class="kpi"><div class="kl">Margem bruta</div><div class="kv" style="color:${clr(mg_pct)}">${pct(mg_pct)}</div><div class="ka">${fmt(mg_r)} gerados</div></div>
+      <div class="kpi"><div class="kl">Unidades vendidas</div><div class="kv">${Math.round(qtd).toLocaleString('pt-BR')}</div></div>
+      <div class="kpi"><div class="kl">Ticket médio</div><div class="kv">R$ ${qtd>0?Math.round(fat/qtd).toLocaleString('pt-BR'):'-'}</div></div>
+    </div>
+    ${detratores.length>0?`
+    <p class="slbl">Detratores de margem</p>
+    <div class="panel"><table class="data-tbl">
+      <thead><tr><th>Produto</th><th>SKU</th><th class="r">Fat.</th><th class="r">Mg %</th><th class="r">Mg R$</th><th class="r">Qtd</th></tr></thead>
+      <tbody>${detratores.map(([sku,v])=>`<tr>
+        <td style="font-weight:500">${v.prod}</td><td style="color:#aaa;font-size:10px">${sku}</td>
+        <td class="r">${fmt(v.fat)}</td>
+        <td class="r"><span class="badge br">${pct(v.mg_pct)}</span></td>
+        <td class="r" style="color:#b91c1c;font-weight:600">${fmt(v.mg_r)}</td>
+        <td class="r">${Math.round(v.qtd).toLocaleString('pt-BR')}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`:''}
+    <p class="slbl">Top SKUs — ${chName}</p>
+    <div class="panel"><table class="data-tbl">
+      <thead><tr><th>#</th><th>Produto</th><th>SKU</th><th class="r">Fat.</th><th class="r">Mg %</th><th class="r">Mg R$</th><th class="r">Qtd</th><th class="r">Ticket</th></tr></thead>
+      <tbody>${topSKUs.map(([sku,v],i)=>`<tr>
+        <td class="rank-n">${i+1}</td>
+        <td style="font-weight:500;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.prod}</td>
+        <td style="color:#aaa;font-size:10px">${sku}</td>
+        <td class="r">${fmt(v.fat)}</td>
+        <td class="r"><span class="badge ${bdg(v.mg_pct)}">${pct(v.mg_pct)}</span></td>
+        <td class="r" style="color:${v.mg_r>=0?'#16a34a':'#b91c1c'};font-weight:600">${fmt(v.mg_r)}</td>
+        <td class="r">${Math.round(v.qtd).toLocaleString('pt-BR')}</td>
+        <td class="r">R$ ${v.qtd>0?Math.round(v.fat/v.qtd).toLocaleString('pt-BR'):'-'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+    <button class="back-btn" onclick="goBack()" style="margin-top:8px">← Voltar ao dashboard</button>
+    <div class="footer-bar" style="margin-top:12px">Dados de ${chName} · up2tech.com.br</div>
+  `;
+}
+
+function goBack() {
+  document.getElementById('ch-detail').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  window.scrollTo(0,0);
+}
+
+function applyFilter() {
+  const status = document.getElementById('date-status');
+  if (status) status.textContent = 'Filtrando...';
+  setTimeout(() => { render(); }, 50);
+}
+
+function setSE(mode) {
+  _seMode = mode;
+  // SE filter will be applied in future — for now just re-render
+  render();
+}
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>
