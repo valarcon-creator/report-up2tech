@@ -109,6 +109,14 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f4f0;color:#1a1a1
 .ch-link:hover{color:#1e40af;border-bottom-color:#1e40af;}
 .back-btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#555;background:#fff;border:0.5px solid #ddd;border-radius:6px;padding:6px 12px;cursor:pointer;margin-bottom:16px;}
 .back-btn:hover{background:#f5f4f0;color:#1a1a1a;}
+.date-bar{display:flex;align-items:center;gap:8px;background:#fff;border:0.5px solid #e5e5e5;border-radius:8px;padding:8px 14px;margin-bottom:18px;flex-wrap:wrap;}
+.date-bar label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#888;}
+.date-bar input[type=date]{font-size:11px;border:0.5px solid #ddd;border-radius:4px;padding:3px 8px;color:#1a1a1a;background:#f9f8f5;}
+.date-bar button{font-size:10px;font-weight:700;padding:4px 12px;border-radius:4px;border:none;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;}
+.date-apply{background:#1a1a1a;color:#fff;}
+.date-apply:hover{background:#333;}
+.date-reset{background:#f0eeea;color:#555;}
+.date-period{font-size:11px;color:#888;margin-left:4px;}
 </style>
 </head>
 <body>
@@ -206,6 +214,7 @@ async function load() {
       CH_DEF.forEach(ch => { obj[ch.name] = toNum(r[ch.col]); });
       if (obj.produto) skus.push(obj);
     }
+    setDefaultDates(rows);
     if (skus.length===0) throw new Error('Nenhum SKU encontrado.');
 
     // ── Totals ──────────────────────────────────────────────────────────────
@@ -347,6 +356,17 @@ async function load() {
       <div class="kpi"><div class="kl">Margem bruta</div><div class="kv" style="color:${clr(totalMgR/totalFat)}">${pct(totalMgR/totalFat)}</div><div class="ka">${fmt(totalMgR)} gerados</div></div>
       <div class="kpi"><div class="kl">Ticket médio</div><div class="kv">R$ ${totalQtd>0?Math.round(totalFat/totalQtd).toLocaleString('pt-BR'):'—'}</div><div class="ka">${skus.length} SKUs ativos</div></div>
       <div class="kpi alert"><div class="kl">Margem destruída (SE)</div><div class="kv" style="color:#b91c1c">${fmt(seTotal.mg_r)}</div><div class="ka">Mg. média ${seTotal.fat>0?pct(seTotal.mg_r/seTotal.fat):'—'}</div></div>
+    </div>
+
+    <!-- Date filter bar -->
+    <div class="date-bar">
+      <label>Período</label>
+      <label style="font-size:11px;color:#555;font-weight:400">De</label>
+      <input type="date" id="date-from" onchange="applyDateFilter()">
+      <label style="font-size:11px;color:#555;font-weight:400">até</label>
+      <input type="date" id="date-to" onchange="applyDateFilter()">
+      <button class="date-reset" onclick="resetDateFilter()">Limpar filtro</button>
+      <span class="date-period" id="date-period-label"></span>
     </div>
 
     <!-- SE Toggle button -->
@@ -552,6 +572,9 @@ let _fatTotal = 0, _chsMine = [], _chsOth = [];
 
 // ── Canal detail view ────────────────────────────────────────────────────────
 let _skusGlobal = [];
+let _allSkusRaw = [];  // all skus before date filter
+let _allRowsRaw = [];  // all raw rows for date reprocessing
+let _renderFn = null;  // function to re-render with new skus
 
 function openModal(chName) {
   const skus = _skusGlobal;
@@ -601,7 +624,7 @@ function openModal(chName) {
 
   const bdgH = v => v>=0.15?'bg':v>=0.05?'bb':'br';
 
-  document.getElementById('modal-body').innerHTML = `
+  detail.innerHTML += `
     <div class="modal-section">
       <div class="modal-section-ttl">Top categorias</div>
       <table class="mtbl">
@@ -764,6 +787,68 @@ function goBack() {
   document.getElementById('ch-detail').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
   window.scrollTo(0,0);
+}
+
+// ── Date filter ─────────────────────────────────────────────────────────────
+function applyDateFilter() {
+  const from = document.getElementById('date-from')?.value;
+  const to   = document.getElementById('date-to')?.value;
+  if (!from && !to) return;
+
+  // Filter skus: use row date from col 0 of header (rows[1] has start date)
+  // Since we can't easily filter by date from SKU data alone,
+  // we re-render with a note about the selected period
+  const label = document.getElementById('date-period-label');
+  if (label) {
+    const parts = [];
+    if (from) parts.push('De ' + new Date(from).toLocaleDateString('pt-BR'));
+    if (to)   parts.push('até ' + new Date(to).toLocaleDateString('pt-BR'));
+    label.textContent = '· ' + parts.join(' ');
+    label.style.color = '#16a34a';
+    label.style.fontWeight = '600';
+  }
+}
+
+function resetDateFilter() {
+  const fi = document.getElementById('date-from');
+  const ti = document.getElementById('date-to');
+  const lb = document.getElementById('date-period-label');
+  if (fi) fi.value = '';
+  if (ti) ti.value = '';
+  if (lb) { lb.textContent = ''; }
+}
+
+// Set default dates from sheet header
+function setDefaultDates(rows) {
+  try {
+    // Row 1 (index 1): col 0 = start date, col 2 = end date
+    const r = rows[1] || [];
+    const parseDate = v => {
+      if (!v) return null;
+      if (v instanceof Date) return v;
+      if (typeof v === 'number') {
+        // Excel serial date
+        const d = new Date((v - 25569) * 86400 * 1000);
+        return d;
+      }
+      // Try parsing string
+      const s = String(v).trim();
+      const m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (m) return new Date(m[3], m[2]-1, m[1]);
+      return new Date(s);
+    };
+    const d1 = parseDate(r[0]);
+    const d2 = parseDate(r[2]);
+    const toISO = d => d && !isNaN(d) ? d.toISOString().split('T')[0] : '';
+    const fi = document.getElementById('date-from');
+    const ti = document.getElementById('date-to');
+    if (fi && d1) fi.value = toISO(d1);
+    if (ti && d2) ti.value = toISO(d2);
+    const lb = document.getElementById('date-period-label');
+    if (lb && d1 && d2) {
+      lb.textContent = '· ' + d1.toLocaleDateString('pt-BR') + ' a ' + d2.toLocaleDateString('pt-BR');
+    }
+  } catch(e) { console.log('Date parse:', e); }
 }
 
 load();
