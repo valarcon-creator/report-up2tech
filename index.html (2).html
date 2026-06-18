@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard Live — Marketplaces up2tech</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f4f0;color:#1a1a1a;padding:28px 24px;max-width:1060px;margin:0 auto;}
+#loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;}
+.spinner{width:40px;height:40px;border:3px solid #e5e5e5;border-top-color:#1a1a1a;border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#loading p{font-size:13px;color:#888;}
+#error{display:none;background:#fef2f2;border:0.5px solid #f5c6c6;border-radius:8px;padding:20px 24px;margin:40px auto;max-width:540px;text-align:center;}
+#error h3{font-size:14px;color:#b91c1c;margin-bottom:8px;}
+#error p{font-size:12px;color:#888;line-height:1.6;}
+#error pre{background:#fee;padding:8px;border-radius:4px;font-size:10px;color:#b91c1c;margin-top:8px;text-align:left;white-space:pre-wrap;word-break:break-all;}
+#dashboard{display:none;}
+.header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;padding-bottom:14px;border-bottom:1.5px solid #1a1a1a;}
+.h-eye{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#888;margin-bottom:3px;}
+.h-title{font-size:21px;font-weight:700;}
+.h-period{font-size:13px;font-weight:600;}
+.h-updated{font-size:10px;color:#aaa;margin-top:2px;}
+.h-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:#e6f7ee;color:#1a6e3a;padding:2px 8px;border-radius:3px;margin-top:4px;}
+.slbl{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#aaa;margin-bottom:8px;}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
+.kpi{background:#fff;border:0.5px solid #e5e5e5;border-radius:8px;padding:12px 14px;}
+.kpi.alert{border-color:#f5c6c6;}
+.kl{font-size:10px;color:#888;margin-bottom:4px;}
+.kv{font-size:20px;font-weight:700;}
+.ka{font-size:10px;color:#aaa;margin-top:2px;}
+.main-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+.panel{background:#fff;border:0.5px solid #e5e5e5;border-radius:8px;overflow:hidden;}
+.ch-table{width:100%;border-collapse:collapse;font-size:11.5px;}
+.ch-table th{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;padding:5px 10px;border-bottom:0.5px solid #eee;text-align:left;}
+.ch-table th.r{text-align:right;}
+.ch-table td{padding:7px 10px;border-bottom:0.5px solid #f5f4f0;vertical-align:middle;}
+.ch-table td.r{text-align:right;}
+.ch-table tr:last-child td{border-bottom:none;}
+.ch-table tr.grp td{background:#f5f4f0;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#aaa;padding:4px 10px;}
+.badge{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;}
+.bg{background:#e6f7ee;color:#1a6e3a;}.br{background:#fde8e8;color:#b91c1c;}.ba{background:#fff3e0;color:#b45309;}.bb{background:#e8f0fe;color:#1a56a8;}
+.prog-wrap{display:flex;align-items:center;gap:5px;}
+.prog{flex:1;height:3px;background:#eee;border-radius:2px;overflow:hidden;min-width:28px;}
+.pf{height:100%;border-radius:2px;}
+.prog-pct{font-size:10px;color:#888;width:36px;text-align:right;flex-shrink:0;}
+.comp-panel{background:#fff;border:0.5px solid #e5e5e5;border-radius:8px;overflow:hidden;}
+.comp-tabs{display:flex;border-bottom:0.5px solid #e5e5e5;}
+.ctab{flex:1;padding:8px 0;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:#fff;color:#aaa;border:none;cursor:pointer;}
+.ctab.nose{background:#f0f7f0;color:#16a34a;}
+.ctab.wse{background:#fff3e0;color:#b45309;}
+.comp-body{padding:14px 16px;}
+.comp-vs{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:12px;}
+.cv-lbl{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-bottom:4px;text-align:center;}
+.cv-num{font-size:30px;font-weight:700;line-height:1;text-align:center;}
+.cv-sub{font-size:9px;color:#aaa;margin-top:2px;text-align:center;}
+.cv-sep{font-size:14px;color:#ccc;text-align:center;}
+.msg-box{border-radius:5px;padding:6px 10px;font-size:10px;margin-bottom:12px;}
+.msg-g{background:#f0f7f0;color:#1a6e3a;}.msg-a{background:#fef9e7;color:#92620a;}
+.comp-ch-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.comp-ch-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px 0;border-bottom:0.5px solid #f0eeea;}
+.comp-ch-row:last-child{border-bottom:none;}
+.cc-name{color:#555;}.cc-val{font-weight:600;}.cc-fat{font-size:9px;color:#aaa;margin-left:4px;}
+.col-hdr{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#aaa;margin-bottom:6px;}
+.comp-note{font-size:9px;color:#aaa;margin-top:8px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+.loss-panel{border-radius:8px;overflow:hidden;}
+.loss-panel.red{border:0.5px solid #f5c6c6;}.loss-panel.amb{border:0.5px solid #f5d9b0;}
+.loss-head{padding:8px 14px;display:flex;justify-content:space-between;align-items:center;}
+.loss-panel.red .loss-head{background:#fef2f2;}.loss-panel.amb .loss-head{background:#fff8f0;}
+.loss-title{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}
+.loss-panel.red .loss-title{color:#b91c1c;}.loss-panel.amb .loss-title{color:#b45309;}
+.loss-total{font-size:11px;font-weight:700;}
+.loss-panel.red .loss-total{color:#b91c1c;}.loss-panel.amb .loss-total{color:#b45309;}
+.ltbl{width:100%;border-collapse:collapse;font-size:11px;}
+.ltbl th{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;padding:5px 10px;border-bottom:0.5px solid #f5c6c6;text-align:left;}
+.loss-panel.amb .ltbl th{border-bottom-color:#f5d9b0;}
+.ltbl th.r{text-align:right;}
+.ltbl td{padding:5px 10px;border-bottom:0.5px solid #fde8e8;vertical-align:top;}
+.loss-panel.amb .ltbl td{border-bottom-color:#fdefd8;}
+.ltbl tr:last-child td{border-bottom:none;}
+.loss-foot{padding:6px 10px;font-size:9px;color:#aaa;border-top:0.5px solid #f5c6c6;}
+.loss-panel.amb .loss-foot{border-top-color:#f5d9b0;background:#fff8f0;}.loss-panel.red .loss-foot{background:#fef2f2;}
+.dot{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:4px;}
+.dm{background:#dbeafe;}.do{background:#f0f0f0;}
+.action-box{background:#fef9e7;border:0.5px solid #f5e98a;border-radius:6px;padding:9px 14px;margin-bottom:18px;}
+.divider{border:none;border-top:0.5px solid #e5e5e5;margin:18px 0;}
+.footer-bar{font-size:9px;color:#bbb;text-align:right;padding-top:10px;border-top:0.5px solid #e5e5e5;}
+</style>
+</head>
+<body>
+<div id="loading"><div class="spinner"></div><p>Carregando dados da planilha...</p></div>
+<div id="error"><h3>Não foi possível carregar os dados</h3><p>Verifique se a planilha está com acesso público.</p><pre id="err-detail"></pre><p style="margin-top:10px"><button onclick="location.reload()" style="padding:6px 16px;background:#1a1a1a;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">Tentar novamente</button></p></div>
+<div id="dashboard"></div>
+
+<script>
+const SHEET_ID   = '1hnxVpZRALknZCN7Cp9LwWBOHB9CpNV8cD156ZqhoMjg';
+const SHEET_NAME = 'data (1)';
+
+// HARDCODED COLUMN MAP (confirmed from CSV analysis)
+const COL = { SKU:0, QTD:1, FAT:2, CURVA:4, PROD:5, MARCA:6, DEPT:7, MG:32 };
+
+// Channel col indices (cols 8-23) + their metadata
+const CH_DEF = [
+  {name:'Mercado Livre', col:8,  mine:false, meta:10000000,  hdrRow:0},
+  {name:'Amazon',        col:9,  mine:true,  meta:65000000,  hdrRow:1},
+  {name:'Shopee',        col:10, mine:false, meta:19000000,  hdrRow:2},
+  {name:'Via Varejo',    col:11, mine:false, meta:9000000,   hdrRow:3},
+  {name:'Magalu',        col:12, mine:true,  meta:10000000,  hdrRow:4},
+  {name:'Fast Shop',     col:15, mine:true,  meta:2000000,   hdrRow:7},
+  {name:'Tiktok Shop',   col:16, mine:true,  meta:400000,    hdrRow:8},
+  {name:'Carrefour',     col:18, mine:true,  meta:3000000,   hdrRow:10},
+  {name:'Kabum',         col:20, mine:true,  meta:3000000,   hdrRow:12},
+  {name:'Itaú Shop',     col:21, mine:true,  meta:2000000,   hdrRow:13},
+  {name:'Martins Atacado',col:23,mine:true,  meta:400000,    hdrRow:15},
+];
+const CHANNELS_MINE   = CH_DEF.filter(c=>c.mine).map(c=>c.name);
+const CHANNELS_OTHERS = CH_DEF.filter(c=>!c.mine).map(c=>c.name);
+const ALL_CH = CH_DEF.map(c=>c.name);
+
+const toNum = v => {
+  if (v===null||v===undefined) return 0;
+  if (typeof v==='number') return isNaN(v)?0:v;
+  const s = String(v).replace(/R\$\s*/g,'').replace(/\s/g,'').replace(/\./g,'').replace(',','.').replace('%','');
+  return parseFloat(s)||0;
+};
+const fmt = n => {
+  if (Math.abs(n)>=1e6) return 'R$ '+(n/1e6).toFixed(1)+'M';
+  if (Math.abs(n)>=1e3) return 'R$ '+Math.round(n/1e3)+'K';
+  return 'R$ '+Math.round(n);
+};
+const pct = n => (n*100).toFixed(1)+'%';
+const clr = v => v>=0.15?'#16a34a':v>=0.05?'#b45309':'#b91c1c';
+const bdg = v => v>=0.15?'bg':v>=0.05?'bb':'br';
+
+async function fetchRows() {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('HTTP '+r.status);
+  const txt = await r.text();
+  const m = txt.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/);
+  if (!m) throw new Error('Resposta inesperada');
+  const data = JSON.parse(m[1]);
+  return data.table.rows.map(row =>
+    (row&&row.c) ? row.c.map(cell=>{
+      if (!cell) return null;
+      if (typeof cell.v==='number') return cell.v;
+      if (cell.f) return cell.f;  // formatted string (e.g. "R$ 1.234,56")
+      return cell.v;
+    }) : []
+  );
+}
+
+async function load() {
+  try {
+    const rows = await fetchRows();
+
+    // Header KPI parsing skipped — using SKU-level calc (more reliable)
+    const chHdr = {};
+
+    // ── Period: rows[0] col0=start, col2=end
+    const periodStart = String(rows[0]?.[0]||'').replace('Data inicial','').trim() || '';
+    const periodEnd   = String(rows[0]?.[2]||'').replace('Data final','').trim()   || '';
+
+    // ── SKU data: starts at row index 26 (row 27)
+    const skus = [];
+    for (let i=26; i<rows.length; i++) {
+      const r = rows[i];
+      if (!r || r.length < 8) continue;
+      const sku = toNum(r[COL.SKU]);
+      const fat = toNum(r[COL.FAT]);
+      if (sku <= 0 || fat <= 0) continue;
+      // gviz returns Margem Comercial as decimal (0.1089) directly
+      const mgRaw = toNum(r[COL.MG]);
+      const mg = Math.abs(mgRaw) > 1 ? mgRaw/100 : mgRaw;
+
+      const obj = {
+        sku, fat, mg, mg_r: fat*mg,
+        qtd:     toNum(r[COL.QTD]),
+        produto: String(r[COL.PROD]||'').trim(),
+        marca:   String(r[COL.MARCA]||'').trim(),
+        dept:    String(r[COL.DEPT]||'').trim(),
+      };
+      CH_DEF.forEach(ch => { obj[ch.name] = toNum(r[ch.col]); });
+      if (obj.produto) skus.push(obj);
+    }
+
+    if (skus.length === 0) throw new Error('Nenhum SKU encontrado. Row 27 col0='+JSON.stringify(dbgRow[0])+' col2='+JSON.stringify(dbgRow[2])+' col32='+JSON.stringify(dbgRow[32])+' rowLen='+dbgRow.length);
+
+    // ── Aggregations ──────────────────────────────────────────────────────────
+    const totalFat = skus.reduce((s,r)=>s+r.fat,0);
+    const totalQtd = skus.reduce((s,r)=>s+r.qtd,0);
+    const totalMgR = skus.reduce((s,r)=>s+r.mg_r,0);
+
+    // SKU-level channel calc
+    const chCalc = {};
+    ALL_CH.forEach(ch => {
+      const fat  = skus.reduce((s,r)=>s+r[ch],0);
+      const mg_r = skus.reduce((s,r)=>s+r[ch]*r.mg,0);
+      chCalc[ch] = { fat, mg_r, pct: fat>0?mg_r/fat:0 };
+    });
+
+    // Use SKU-level calc for fat+margem (reliable), meta from CH_DEF
+    const chData = {};
+    ALL_CH.forEach(ch => {
+      const c = chCalc[ch]||{};
+      const meta = CH_DEF.find(d=>d.name===ch)?.meta || 0;
+      chData[ch] = { fat: c.fat||0, margem: c.pct||0, meta };
+    });
+
+    const isSE = s => s.produto.toUpperCase().includes('IPHONE') && / SE[\s\d]/.test(s.produto.toUpperCase());
+    const noSE = skus.filter(s=>!isSE(s));
+
+    const grpMg = (sub, chs) => {
+      let fat=0, mg_r=0;
+      chs.forEach(ch=>{ fat+=sub.reduce((s,r)=>s+r[ch],0); mg_r+=sub.reduce((s,r)=>s+r[ch]*r.mg,0); });
+      return {fat, mg_r, pct: fat>0?mg_r/fat:0};
+    };
+    const comp = {
+      mine_all:  grpMg(skus, CHANNELS_MINE),
+      mine_nose: grpMg(noSE, CHANNELS_MINE),
+      oth_all:   grpMg(skus, CHANNELS_OTHERS),
+      oth_nose:  grpMg(noSE, CHANNELS_OTHERS),
+    };
+    const chNoSE = {};
+    ALL_CH.forEach(ch => { chNoSE[ch] = grpMg(noSE,[ch]); });
+
+    // SE destruction
+    const seSkus = skus.filter(isSE);
+    const seCh = {};
+    ALL_CH.forEach(ch => {
+      const fat = seSkus.reduce((s,r)=>s+r[ch],0);
+      if (fat>0) { const mg_r=seSkus.reduce((s,r)=>s+r[ch]*r.mg,0); seCh[ch]={fat,mg_r,pct:mg_r/fat}; }
+    });
+    const seTotal = {fat:Object.values(seCh).reduce((s,v)=>s+v.fat,0), mg_r:Object.values(seCh).reduce((s,v)=>s+v.mg_r,0)};
+
+    // Other negatives
+    const negOth = skus.filter(s=>s.mg<0&&!isSE(s));
+    const negCh = {};
+    ALL_CH.forEach(ch => {
+      const fat=negOth.reduce((s,r)=>s+r[ch],0);
+      if(fat>0){const mg_r=negOth.reduce((s,r)=>s+r[ch]*r.mg,0);const sl=negOth.filter(r=>r[ch]>0).map(r=>r.produto.slice(0,28)+' ('+pct(r.mg)+')');negCh[ch]={fat,mg_r,pct:mg_r/fat,sl};}
+    });
+    const negTotal=Object.values(negCh).reduce((s,v)=>s+v.mg_r,0);
+
+    // Top lists
+    const byDept={},byMarca={};
+    skus.forEach(s=>{ byDept[s.dept]=(byDept[s.dept]||0)+s.fat; byMarca[s.marca]=(byMarca[s.marca]||0)+s.fat; });
+    const topDept  = Object.entries(byDept).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const topMarca = Object.entries(byMarca).sort((a,b)=>b[1]-a[1]).slice(0,6);
+    const topSKUs  = [...skus].sort((a,b)=>b.fat-a.fat).slice(0,8);
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    const now = new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+    const chRow = ch => {
+      const d = chData[ch];
+      const isMine = CHANNELS_MINE.includes(ch);
+      const at = d.meta>0?d.fat/d.meta:0;
+      const bw = Math.min(100,at*100).toFixed(1);
+      const bc = at>=1?'#16a34a':at>=0.5?'#3b82f6':at>=0.2?'#f59e0b':'#ef4444';
+      const warn = d.margem<0?' <span style="color:#b91c1c">⚠</span>':'';
+      return `<tr><td style="${isMine?'font-weight:500':''}">${ch}${warn}</td><td class="r">${fmt(d.fat)}</td><td class="r"><span class="badge ${bdg(d.margem)}">${pct(d.margem)}</span></td><td><div class="prog-wrap"><div class="prog"><div class="pf" style="width:${bw}%;background:${bc}"></div></div><span class="prog-pct">${(at*100).toFixed(1)}%</span></div></td></tr>`;
+    };
+
+    const compRows = (chs, data) => chs.sort((a,b)=>(data[b]?.pct||0)-(data[a]?.pct||0))
+      .map(ch=>`<div class="comp-ch-row"><span class="cc-name">${ch}</span><span><span class="cc-val" style="color:${clr(data[ch]?.pct||0)}">${pct(data[ch]?.pct||0)}</span><span class="cc-fat">${fmt(data[ch]?.fat||0)}</span></span></div>`).join('');
+
+    const seRows = Object.entries(seCh).sort((a,b)=>a[1].mg_r-b[1].mg_r)
+      .map(([ch,v],i)=>`<tr style="${i%2?'':'background:#fff8f8'}"><td><span class="dot ${CHANNELS_MINE.includes(ch)?'dm':'do'}"></span>${ch}</td><td class="r" style="color:#555">${fmt(v.fat)}</td><td class="r" style="color:#b91c1c;font-weight:600">${pct(v.pct)}</td><td class="r" style="color:#b91c1c;font-weight:700">${fmt(v.mg_r)}</td></tr>`).join('');
+
+    const negRows = Object.entries(negCh).sort((a,b)=>b[1].fat-a[1].fat)
+      .map(([ch,v],i)=>`<tr style="${i%2?'':'background:#fffcf8'}"><td><span class="dot ${CHANNELS_MINE.includes(ch)?'dm':'do'}"></span>${ch}</td><td class="r" style="color:#555">${fmt(v.fat)}</td><td class="r" style="color:#b45309;font-weight:600">${pct(v.pct)}</td><td class="r" style="color:#b45309;font-weight:700">${fmt(v.mg_r)}</td><td style="font-size:10px;color:#888">${v.sl.slice(0,2).join(', ')}</td></tr>`).join('');
+
+    document.getElementById('dashboard').innerHTML = `
+    <div class="header">
+      <div><div class="h-eye">up2tech · Marketplace Management</div><div class="h-title">Dashboard Executivo — Marketplaces</div></div>
+      <div style="text-align:right"><div class="h-period">${skus.length} SKUs · ${ALL_CH.length} canais</div><div class="h-updated">Atualizado ${now}</div><div><span class="h-badge">● Live — Google Sheets</span></div></div>
+    </div>
+
+    <p class="slbl">Resumo geral</p>
+    <div class="kpi-row">
+      <div class="kpi"><div class="kl">Faturamento total</div><div class="kv">${fmt(totalFat)}</div><div class="ka">${totalQtd.toLocaleString('pt-BR')} unidades</div></div>
+      <div class="kpi"><div class="kl">Margem bruta</div><div class="kv" style="color:${clr(totalMgR/totalFat)}">${pct(totalMgR/totalFat)}</div><div class="ka">${fmt(totalMgR)} gerados</div></div>
+      <div class="kpi"><div class="kl">Ticket médio</div><div class="kv">R$ ${totalQtd>0?Math.round(totalFat/totalQtd).toLocaleString('pt-BR'):'—'}</div><div class="ka">${skus.length} SKUs ativos</div></div>
+      <div class="kpi alert"><div class="kl">Margem destruída</div><div class="kv" style="color:#b91c1c">${fmt(seTotal.mg_r+negTotal)}</div><div class="ka">iPhone SE: ${fmt(seTotal.mg_r)}</div></div>
+    </div>
+
+    <div class="main-grid">
+      <div>
+        <p class="slbl">Performance dos canais</p>
+        <div class="panel"><table class="ch-table">
+          <thead><tr><th>Canal</th><th class="r">Faturamento</th><th class="r">Margem</th><th>Meta</th></tr></thead>
+          <tbody>
+            <tr class="grp"><td colspan="4">Meus canais</td></tr>
+            ${CHANNELS_MINE.map(ch=>chRow(ch)).join('')}
+            <tr class="grp"><td colspan="4">Outros canais</td></tr>
+            ${CHANNELS_OTHERS.map(ch=>chRow(ch)).join('')}
+          </tbody>
+        </table></div>
+      </div>
+      <div>
+        <p class="slbl">Comparativo de margem — com e sem iPhone SE</p>
+        <div class="comp-panel">
+          <div class="comp-tabs">
+            <button class="ctab nose" id="btn-nose" onclick="tog('nose')">Excluindo iPhone SE</button>
+            <button class="ctab" id="btn-wse" onclick="tog('wse')">Incluindo iPhone SE</button>
+          </div>
+          <div id="pn" class="comp-body">
+            <div class="comp-vs">
+              <div><div class="cv-lbl">Meus canais</div><div class="cv-num" style="color:#16a34a">${pct(comp.mine_nose.pct)}</div><div class="cv-sub">Fat. ${fmt(comp.mine_nose.fat)}</div></div>
+              <div class="cv-sep">vs</div>
+              <div><div class="cv-lbl">Outros canais</div><div class="cv-num" style="color:#555">${pct(comp.oth_nose.pct)}</div><div class="cv-sub">Fat. ${fmt(comp.oth_nose.fat)}</div></div>
+            </div>
+            <div class="msg-box msg-g">✓ Sem iPhone SE, meus canais superam os outros em margem.</div>
+            <div class="comp-ch-grid">
+              <div><div class="col-hdr">Meus canais (s/ SE)</div>${compRows(CHANNELS_MINE,chNoSE)}</div>
+              <div><div class="col-hdr">Outros canais (s/ SE)</div>${compRows(CHANNELS_OTHERS,chNoSE)}</div>
+            </div>
+            <div class="comp-note">TikTok sem SE: ${pct(chNoSE['Tiktok Shop']?.pct||0)} · Carrefour sem SE: ${pct(chNoSE['Carrefour']?.pct||0)}</div>
+          </div>
+          <div id="pw" class="comp-body" style="display:none">
+            <div class="comp-vs">
+              <div><div class="cv-lbl">Meus canais</div><div class="cv-num" style="color:#b91c1c">${pct(comp.mine_all.pct)}</div><div class="cv-sub">Fat. ${fmt(comp.mine_all.fat)}</div></div>
+              <div class="cv-sep">vs</div>
+              <div><div class="cv-lbl">Outros canais</div><div class="cv-num" style="color:#555">${pct(comp.oth_all.pct)}</div><div class="cv-sub">Fat. ${fmt(comp.oth_all.fat)}</div></div>
+            </div>
+            <div class="msg-box msg-a">⚠ Com iPhone SE, meus canais ficam abaixo — o SE distorce a comparação.</div>
+            <div class="comp-ch-grid">
+              <div><div class="col-hdr">Meus canais (c/ SE)</div>${compRows(CHANNELS_MINE,chCalc)}</div>
+              <div><div class="col-hdr">Outros canais (c/ SE)</div>${compRows(CHANNELS_OTHERS,chCalc)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <p class="slbl">Perda de margem — iPhone SE por canal</p>
+        <div class="loss-panel red">
+          <div class="loss-head"><span class="loss-title">iPhone SE · mg. média ${seTotal.fat>0?pct(seTotal.mg_r/seTotal.fat):'—'}</span><span class="loss-total">${fmt(seTotal.mg_r)}</span></div>
+          <table class="ltbl"><thead><tr><th>Canal</th><th class="r">Fat. SE</th><th class="r">Mg %</th><th class="r">Destruído</th></tr></thead><tbody>${seRows||'<tr><td colspan="4" style="color:#aaa;text-align:center;padding:10px">Sem vendas de SE no período</td></tr>'}</tbody></table>
+          <div class="loss-foot"><span class="dot dm"></span>Meus &nbsp;<span class="dot do"></span>Outros</div>
+        </div>
+      </div>
+      <div>
+        <p class="slbl">Outros produtos com margem negativa</p>
+        <div class="loss-panel amb">
+          <div class="loss-head"><span class="loss-title">Outros SKUs negativos</span><span class="loss-total">${fmt(negTotal)}</span></div>
+          <table class="ltbl"><thead><tr><th>Canal</th><th class="r">Fat.</th><th class="r">Mg %</th><th class="r">Destruído</th><th>SKUs</th></tr></thead><tbody>${negRows||'<tr><td colspan="5" style="color:#aaa;text-align:center;padding:10px">Nenhum</td></tr>'}</tbody></table>
+          <div class="loss-foot"><span class="dot dm"></span>Meus &nbsp;<span class="dot do"></span>Outros</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-box"><span style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#92620a;">Ação recomendada · </span><span style="font-size:11px;color:#78410a;">Pausar iPhone SE em TikTok Shop, Carrefour e Itaú Shop recuperaria margem significativa sem impacto de volume.</span></div>
+
+    <div class="divider"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px;">
+      <div><p class="slbl">Top categorias</p><div class="panel">${topDept.map(([d,f])=>`<div style="display:flex;justify-content:space-between;padding:7px 12px;border-bottom:0.5px solid #f5f4f0;font-size:12px"><span style="color:#555">${d}</span><span style="font-weight:600">${fmt(f)}</span></div>`).join('')}</div></div>
+      <div><p class="slbl">Top marcas</p><div class="panel">${topMarca.map(([m,f])=>`<div style="display:flex;justify-content:space-between;padding:7px 12px;border-bottom:0.5px solid #f5f4f0;font-size:12px"><span style="color:#555">${m}</span><span style="font-weight:600">${fmt(f)}</span></div>`).join('')}</div></div>
+      <div><p class="slbl">Top 8 SKUs</p><div class="panel">${topSKUs.map((s,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:0.5px solid #f5f4f0;font-size:11px"><span style="color:#aaa;width:14px">${i+1}</span><span style="flex:1;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.produto}</span><span style="font-weight:600;white-space:nowrap">${fmt(s.fat)}</span></div>`).join('')}</div></div>
+    </div>
+
+    <div class="footer-bar">Dados lidos do Google Sheets · ${now} · up2tech.com.br &nbsp;|&nbsp; <span style="color:#3b82f6">■</span> Meus canais &nbsp; <span style="color:#999">■</span> Outros</div>`;
+
+    document.getElementById('loading').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+
+  } catch(err) {
+    console.error(err);
+    document.getElementById('loading').style.display='none';
+    document.getElementById('error').style.display='block';
+    document.getElementById('err-detail').textContent = err.message;
+  }
+}
+
+function tog(mode) {
+  document.getElementById('pn').style.display = mode==='nose'?'block':'none';
+  document.getElementById('pw').style.display = mode==='wse'?'block':'none';
+  document.getElementById('btn-nose').className = 'ctab'+(mode==='nose'?' nose':'');
+  document.getElementById('btn-wse').className  = 'ctab'+(mode==='wse'?' wse':'');
+}
+
+load();
+</script>
+</body>
+</html>
