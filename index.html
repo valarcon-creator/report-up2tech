@@ -563,10 +563,6 @@ function openModal(chName) {
   detail.style.display = 'block';
   window.scrollTo(0,0);
 
-
-  const skus = _skusGlobal;
-  if (!skus.length) return;
-
   const chSkus = skus.filter(s => s[chName] > 0);
   const fat    = chSkus.reduce((a,s) => a + s[chName], 0);
   const mg_r   = chSkus.reduce((a,s) => a + s[chName] * s.mg, 0);
