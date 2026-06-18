@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Inspecionar colunas completas</title>
+<style>
+body{font-family:monospace;padding:20px;background:#1a1a1a;color:#e8e6df;}
+pre{background:#111;padding:12px;border-radius:6px;overflow-x:auto;font-size:11px;white-space:pre-wrap;}
+h3{color:#a78bfa;margin-top:20px;}
+.ok{color:#4ade80;}.err{color:#f87171;}
+button{background:#a78bfa;color:#fff;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:13px;margin-bottom:16px;}
+</style>
+</head>
+<body>
+<h2>Inspetor detalhado de colunas</h2>
+<button onclick="inspectAll()">Inspecionar</button>
+<div id="output"></div>
+<script>
+const SHEET_ID = '1hnxVpZRALknZCN7Cp9LwWBOHB9CpNV8cD156ZqhoMjg';
+const TABS = ['Amazon Database','Magalu Database','AnyMarket Database'];
+
+async function fetchTab(name) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(name)}`;
+  const r = await fetch(url);
+  const txt = await r.text();
+  const m = txt.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/);
+  const data = JSON.parse(m[1]);
+  const cols = data.table.cols.map((c,i) => ({idx:i, label:c.label||c.id, type:c.type}));
+  const rows = data.table.rows;
+  return { cols, rows };
+}
+
+function cellVal(cell) {
+  if (!cell) return null;
+  return cell.f || cell.v;
+}
+
+async function inspectAll() {
+  const out = document.getElementById('output');
+  out.innerHTML = '<p>Carregando...</p>';
+  let html = '';
+
+  for (const tab of TABS) {
+    try {
+      const { cols, rows } = await fetchTab(tab);
+      html += `<h3 class="ok">✓ ${tab} — ${rows.length} linhas, ${cols.length} colunas</h3>`;
+      
+      // Show ALL columns with index
+      html += `<pre>TODAS AS COLUNAS:\n`;
+      cols.forEach(c => {
+        html += `  [${c.idx}] "${c.label}" (${c.type})\n`;
+      });
+      
+      // Show first 3 data rows with ALL values
+      html += `\nPRIMEIRAS 3 LINHAS (todas as colunas):\n`;
+      for (let i=0; i<Math.min(3, rows.length); i++) {
+        const r = rows[i];
+        if (!r || !r.c) continue;
+        html += `\nRow ${i+1}:\n`;
+        r.c.forEach((cell, idx) => {
+          const v = cellVal(cell);
+          if (v !== null && v !== undefined && v !== '') {
+            html += `  [${idx}] ${cols[idx]?.label}: ${String(v).substring(0,60)}\n`;
+          }
+        });
+      }
+      html += `</pre>`;
+    } catch(e) {
+      html += `<h3 class="err">✗ ${tab} — ${e.message}</h3>`;
+    }
+  }
+  out.innerHTML = html;
+}
+</script>
+</body>
+</html>
