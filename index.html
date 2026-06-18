@@ -569,14 +569,7 @@ function openModal(chName) {
   const qtd    = chSkus.reduce((a,s) => a + s.qtd, 0);
   const mg_pct = fat > 0 ? mg_r / fat : 0;
 
-  document.getElementById('modal-ch-name').textContent = chName;
-  document.getElementById('modal-ch-sub').textContent  = chSkus.length + ' SKUs ativos neste canal';
-  document.getElementById('modal-fat').textContent    = _fmt(fat);
-  document.getElementById('modal-fat').style.color    = '#1a1a1a';
-  document.getElementById('modal-mg').textContent     = _pct(mg_pct);
-  document.getElementById('modal-mg').style.color     = _clr(mg_pct);
-  document.getElementById('modal-qtd').textContent    = Math.round(qtd).toLocaleString('pt-BR');
-  document.getElementById('modal-ticket').textContent = qtd > 0 ? 'R$ ' + Math.round(fat/qtd).toLocaleString('pt-BR') : '-';
+  // KPIs computed above, used directly in innerHTML below
 
   // Top SKUs
   const topSKUs = [...chSkus].sort((a,b) => b[chName] - a[chName]).slice(0, 15);
