@@ -93,6 +93,31 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f4f0;color:#1a1a1
 .panel-hdr{padding:9px 14px;background:#fafafa;border-bottom:0.5px solid #eee;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888;}
 
 .footer-bar{font-size:9px;color:#bbb;text-align:right;padding-top:10px;border-top:0.5px solid #e5e5e5;margin-top:8px;}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto;}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;border-radius:12px;width:100%;max-width:860px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
+.modal-head{padding:16px 20px;border-bottom:0.5px solid #eee;display:flex;justify-content:space-between;align-items:center;background:#fafafa;}
+.modal-ch-name{font-size:16px;font-weight:700;color:#1a1a1a;}
+.modal-kpis{display:flex;gap:20px;align-items:center;}
+.mk{text-align:right;}
+.mk-val{font-size:14px;font-weight:700;}
+.mk-lbl{font-size:9px;color:#aaa;}
+.modal-close{width:28px;height:28px;border-radius:50%;background:#f0eeea;border:none;cursor:pointer;font-size:14px;color:#666;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.modal-close:hover{background:#e5e5e5;}
+.modal-body{padding:16px 20px;max-height:70vh;overflow-y:auto;}
+.modal-section{margin-bottom:16px;}
+.modal-section-ttl{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#aaa;margin-bottom:8px;}
+.mtbl{width:100%;border-collapse:collapse;font-size:11.5px;}
+.mtbl th{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;padding:5px 8px;border-bottom:0.5px solid #eee;text-align:left;}
+.mtbl th.r{text-align:right;}
+.mtbl td{padding:6px 8px;border-bottom:0.5px solid #f5f4f0;vertical-align:middle;}
+.mtbl td.r{text-align:right;}
+.mtbl tr:last-child td{border-bottom:none;}
+.mtbl tr:hover td{background:#fafaf8;}
+.ch-link{cursor:pointer;text-decoration:none;color:inherit;border-bottom:1px dashed #ccc;padding-bottom:1px;}
+.ch-link:hover{color:#1a56a8;border-bottom-color:#1a56a8;}
 </style>
 </head>
 <body>
@@ -271,6 +296,9 @@ async function load() {
     });
     const topMarca = Object.entries(byMarca).sort((a,b)=>b[1].fat-a[1].fat).slice(0,15);
 
+    // ── Store skus globally for modal ────────────────────────────────────────────
+    _skusGlobal = skus;
+
     // ── Store globals for SE toggle (after all aggregations) ──────────────────
     _chCalc = chCalc;
     _chNoSE = chNoSE;
@@ -302,7 +330,7 @@ async function load() {
       const warn = d.pct<0?' <span style="color:#b91c1c">⚠</span>':'';
       const rowId = 'chrow-'+ch.replace(/\s/g,'-').replace(/[^\w-]/g,'');
       return `<tr id="${rowId}">
-        <td style="font-weight:500">${ch}${warn}</td>
+        <td style="font-weight:500"><span class="ch-link" onclick="openModal('${ch}')">${ch}</span>${warn}</td>
         <td class="r ch-fat">${fmt(d.fat)}</td>
         <td class="r"><span class="badge ${bdg(d.pct)}">${pct(d.pct)}</span></td>
         <td class="r ch-qtd">${fmtN(d.qtd)}</td>
@@ -531,7 +559,149 @@ function _bdg(v){return v>=0.15?'bg':v>=0.05?'bb':'br';}
 
 let _fatTotal = 0, _chsMine = [], _chsOth = [];
 
+// ── Modal ───────────────────────────────────────────────────────────────────
+let _skusGlobal = [];
+
+function openModal(chName) {
+  const skus = _skusGlobal;
+  if (!skus.length) return;
+
+  const chSkus = skus.filter(s => s[chName] > 0);
+  const fat    = chSkus.reduce((a,s) => a + s[chName], 0);
+  const mg_r   = chSkus.reduce((a,s) => a + s[chName] * s.mg, 0);
+  const qtd    = chSkus.reduce((a,s) => a + s.qtd, 0);
+  const mg_pct = fat > 0 ? mg_r / fat : 0;
+
+  document.getElementById('modal-ch-name').textContent = chName;
+  document.getElementById('modal-ch-sub').textContent  = chSkus.length + ' SKUs ativos neste canal';
+  document.getElementById('modal-fat').textContent    = _fmt(fat);
+  document.getElementById('modal-fat').style.color    = '#1a1a1a';
+  document.getElementById('modal-mg').textContent     = _pct(mg_pct);
+  document.getElementById('modal-mg').style.color     = _clr(mg_pct);
+  document.getElementById('modal-qtd').textContent    = Math.round(qtd).toLocaleString('pt-BR');
+  document.getElementById('modal-ticket').textContent = qtd > 0 ? 'R$ ' + Math.round(fat/qtd).toLocaleString('pt-BR') : '-';
+
+  // Top SKUs
+  const topSKUs = [...chSkus].sort((a,b) => b[chName] - a[chName]).slice(0, 15);
+
+  // Top categorias
+  const byDept = {};
+  chSkus.forEach(s => {
+    const f = s[chName];
+    if (!byDept[s.dept]) byDept[s.dept] = {fat:0, mg_r:0, qtd:0};
+    byDept[s.dept].fat  += f;
+    byDept[s.dept].mg_r += f * s.mg;
+    byDept[s.dept].qtd  += s.qtd;
+  });
+  const topDept = Object.entries(byDept).sort((a,b) => b[1].fat - a[1].fat).slice(0, 6);
+
+  // Top marcas
+  const byMarca = {};
+  chSkus.forEach(s => {
+    const f = s[chName];
+    if (!byMarca[s.marca]) byMarca[s.marca] = {fat:0, mg_r:0, qtd:0};
+    byMarca[s.marca].fat  += f;
+    byMarca[s.marca].mg_r += f * s.mg;
+    byMarca[s.marca].qtd  += s.qtd;
+  });
+  const topMarca = Object.entries(byMarca).sort((a,b) => b[1].fat - a[1].fat).slice(0, 6);
+
+  // Detratores (margem negativa)
+  const detratores = chSkus.filter(s => s.mg < 0).sort((a,b) => (a[chName]*a.mg) - (b[chName]*b.mg));
+
+  const bdgH = v => v>=0.15?'bg':v>=0.05?'bb':'br';
+
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-section">
+      <div class="modal-section-ttl">Top categorias</div>
+      <table class="mtbl">
+        <thead><tr><th>Categoria</th><th class="r">Faturamento</th><th class="r">Margem %</th><th class="r">Margem R$</th><th class="r">Qtd</th><th class="r">Ticket</th></tr></thead>
+        <tbody>${topDept.map(([d,v])=>`<tr>
+          <td style="font-weight:500">${d}</td>
+          <td class="r">${_fmt(v.fat)}</td>
+          <td class="r"><span class="badge ${bdgH(v.fat>0?v.mg_r/v.fat:0)}">${_pct(v.fat>0?v.mg_r/v.fat:0)}</span></td>
+          <td class="r" style="color:${v.mg_r>=0?'#16a34a':'#b91c1c'};font-weight:600">${_fmt(v.mg_r)}</td>
+          <td class="r">${Math.round(v.qtd).toLocaleString('pt-BR')}</td>
+          <td class="r">R$ ${v.qtd>0?Math.round(v.fat/v.qtd).toLocaleString('pt-BR'):'-'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+      <div class="modal-section">
+        <div class="modal-section-ttl">Top marcas</div>
+        <table class="mtbl">
+          <thead><tr><th>Marca</th><th class="r">Fat.</th><th class="r">Mg %</th><th class="r">Qtd</th></tr></thead>
+          <tbody>${topMarca.map(([m,v])=>`<tr>
+            <td style="font-weight:500">${m}</td>
+            <td class="r">${_fmt(v.fat)}</td>
+            <td class="r"><span class="badge ${bdgH(v.fat>0?v.mg_r/v.fat:0)}">${_pct(v.fat>0?v.mg_r/v.fat:0)}</span></td>
+            <td class="r">${Math.round(v.qtd).toLocaleString('pt-BR')}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>
+      ${detratores.length > 0 ? `<div class="modal-section">
+        <div class="modal-section-ttl" style="color:#b91c1c">Detratores de margem</div>
+        <table class="mtbl">
+          <thead><tr><th>Produto</th><th class="r">Fat.</th><th class="r">Mg %</th><th class="r">Mg R$</th></tr></thead>
+          <tbody>${detratores.slice(0,6).map(s=>`<tr>
+            <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.produto}</td>
+            <td class="r">${_fmt(s[chName])}</td>
+            <td class="r"><span class="badge br">${_pct(s.mg)}</span></td>
+            <td class="r" style="color:#b91c1c;font-weight:600">${_fmt(s[chName]*s.mg)}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>` : '<div></div>'}
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-section-ttl">Top SKUs</div>
+      <table class="mtbl">
+        <thead><tr><th>#</th><th>Produto</th><th>Marca</th><th class="r">Fat. Canal</th><th class="r">Mg %</th><th class="r">Mg R$</th><th class="r">Qtd</th><th class="r">Ticket</th></tr></thead>
+        <tbody>${topSKUs.map((s,i)=>`<tr>
+          <td style="color:#ccc;font-size:10px">${i+1}</td>
+          <td style="font-weight:500;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.produto}</td>
+          <td style="color:#555">${s.marca}</td>
+          <td class="r">${_fmt(s[chName])}</td>
+          <td class="r"><span class="badge ${bdgH(s.mg)}">${_pct(s.mg)}</span></td>
+          <td class="r" style="color:${s.mg_r>=0?'#16a34a':'#b91c1c'};font-weight:600">${_fmt(s[chName]*s.mg)}</td>
+          <td class="r">${Math.round(s.qtd).toLocaleString('pt-BR')}</td>
+          <td class="r">R$ ${s.qtd>0?Math.round(s[chName]/s.qtd).toLocaleString('pt-BR'):'-'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+
+  document.getElementById('ch-modal').classList.add('open');
+  document.getElementById('ch-modal-inner').scrollTop = 0;
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('ch-modal'))
+    document.getElementById('ch-modal').classList.remove('open');
+}
+
 load();
 </script>
+<!-- Canal detail modal -->
+<div class="modal-overlay" id="ch-modal" onclick="closeModal(event)">
+  <div class="modal" id="ch-modal-inner">
+    <div class="modal-head">
+      <div>
+        <div class="modal-ch-name" id="modal-ch-name">Canal</div>
+        <div style="font-size:11px;color:#aaa;margin-top:2px" id="modal-ch-sub"></div>
+      </div>
+      <div class="modal-kpis">
+        <div class="mk"><div class="mk-val" id="modal-fat">-</div><div class="mk-lbl">Faturamento</div></div>
+        <div class="mk"><div class="mk-val" id="modal-mg">-</div><div class="mk-lbl">Margem</div></div>
+        <div class="mk"><div class="mk-val" id="modal-qtd">-</div><div class="mk-lbl">Unidades</div></div>
+        <div class="mk"><div class="mk-val" id="modal-ticket">-</div><div class="mk-lbl">Ticket médio</div></div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('ch-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
 </body>
 </html>
