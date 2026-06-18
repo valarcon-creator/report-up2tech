@@ -360,12 +360,13 @@ async function load() {
 
     <!-- Date filter bar -->
     <div class="date-bar">
-      <label>Período da planilha</label>
-      <span class="date-period" id="date-period-label" style="font-size:12px;font-weight:600;color:#1a1a1a"></span>
-      <div style="flex:1"></div>
-      <button class="date-reset" onclick="load()" style="display:inline-flex;align-items:center;gap:5px">
-        ↻ Atualizar dados
-      </button>
+      <label>Período</label>
+      <input type="date" id="date-from">
+      <label style="font-size:11px;color:#555;font-weight:400">até</label>
+      <input type="date" id="date-to">
+      <button class="date-apply" id="btn-buscar" onclick="buscarPeriodo()">Buscar</button>
+      <button class="date-reset" onclick="load()">↻ Atualizar</button>
+      <span id="date-status" style="font-size:11px;color:#888"></span>
     </div>
 
     <!-- SE Toggle button -->
@@ -663,6 +664,43 @@ function openModal(chName) {
   window.scrollTo(0,0);
 }
 
+// ── Date filter ─────────────────────────────────────────────────────────────
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwMS-oIkogIBhRp1lABJeH_kA2syhqdq4xFXb5LFeTrm5zxecfArcWMKVMlCvcZzILzsg/exec';
+
+async function buscarPeriodo() {
+  const from = document.getElementById('date-from').value;
+  const to   = document.getElementById('date-to').value;
+  if (!from || !to) {
+    document.getElementById('date-status').textContent = 'Selecione as duas datas.';
+    document.getElementById('date-status').style.color = '#b91c1c';
+    return;
+  }
+  const btn = document.getElementById('btn-buscar');
+  const status = document.getElementById('date-status');
+  btn.textContent = 'Buscando...';
+  btn.disabled = true;
+  status.textContent = 'Atualizando planilha...';
+  status.style.color = '#888';
+  try {
+    // Call Apps Script to update Dashboard_Vini dates
+    const url = APPS_SCRIPT_URL + '?from=' + from + '&to=' + to;
+    await fetch(url, {mode: 'no-cors'});
+    // Wait 2s for sheet to recalculate then reload data
+    status.textContent = 'Aguardando planilha...';
+    await new Promise(r => setTimeout(r, 2500));
+    status.textContent = 'Carregando dados...';
+    await load();
+    status.textContent = '✓ ' + new Date(from+'T12:00:00').toLocaleDateString('pt-BR') + ' a ' + new Date(to+'T12:00:00').toLocaleDateString('pt-BR');
+    status.style.color = '#16a34a';
+  } catch(err) {
+    status.textContent = 'Erro: ' + err.message;
+    status.style.color = '#b91c1c';
+  } finally {
+    btn.textContent = 'Buscar';
+    btn.disabled = false;
+  }
+}
+
 // ── Date display ─────────────────────────────────────────────────────────────
 // Set period label from sheet header
 function setDefaultDates(rows) {
@@ -688,11 +726,12 @@ function setDefaultDates(rows) {
     const toISO = d => d && !isNaN(d) ? d.toISOString().split('T')[0] : '';
     const fi = document.getElementById('date-from');
     const ti = document.getElementById('date-to');
+    const st = document.getElementById('date-status');
     if (fi && d1) fi.value = toISO(d1);
     if (ti && d2) ti.value = toISO(d2);
-    const lb = document.getElementById('date-period-label');
-    if (lb && d1 && d2) {
-      lb.textContent = '· ' + d1.toLocaleDateString('pt-BR') + ' a ' + d2.toLocaleDateString('pt-BR');
+    if (st && d1 && d2) {
+      st.textContent = 'Período atual: ' + d1.toLocaleDateString('pt-BR') + ' a ' + d2.toLocaleDateString('pt-BR');
+      st.style.color = '#888';
     }
   } catch(e) { console.log('Date parse:', e); }
 }
