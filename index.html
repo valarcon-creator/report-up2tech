@@ -182,20 +182,6 @@ async function load() {
       if (obj.produto) skus.push(obj);
     }
     if (skus.length===0) throw new Error('Nenhum SKU encontrado.');
-    // Store globals for SE toggle
-    _chCalc = chCalc;
-    _chNoSE = chNoSE;
-    _chsMine = CHANNELS_MINE;
-    _chsOth  = CHANNELS_OTHERS;
-    _fatTotal = fatMine + fatOth;
-    _chMine = {
-      all:  grpMg(skus, CHANNELS_MINE),
-      nose: grpMg(noSE, CHANNELS_MINE),
-    };
-    _chOth = {
-      all:  grpMg(skus, CHANNELS_OTHERS),
-      nose: grpMg(noSE, CHANNELS_OTHERS),
-    };
 
     // ── Totals ──────────────────────────────────────────────────────────────
     const totalFat = skus.reduce((s,r)=>s+r.fat,0);
@@ -275,6 +261,21 @@ async function load() {
       byMarca[s.marca].qtd  += s.qtd;
     });
     const topMarca = Object.entries(byMarca).sort((a,b)=>b[1].fat-a[1].fat).slice(0,15);
+
+    // ── Store globals for SE toggle (after all aggregations) ──────────────────
+    _chCalc = chCalc;
+    _chNoSE = chNoSE;
+    _chsMine = CHANNELS_MINE;
+    _chsOth  = CHANNELS_OTHERS;
+    _fatTotal = fatMine + fatOth;
+    _chMine = {
+      all:  grpMg(skus, CHANNELS_MINE),
+      nose: grpMg(noSE, CHANNELS_MINE),
+    };
+    _chOth = {
+      all:  grpMg(skus, CHANNELS_OTHERS),
+      nose: grpMg(noSE, CHANNELS_OTHERS),
+    };
 
     // ── Render ────────────────────────────────────────────────────────────────
     const now = new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
