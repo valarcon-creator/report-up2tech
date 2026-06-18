@@ -94,30 +94,21 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f4f0;color:#1a1a1
 
 .footer-bar{font-size:9px;color:#bbb;text-align:right;padding-top:10px;border-top:0.5px solid #e5e5e5;margin-top:8px;}
 
-/* Modal */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto;}
-.modal-overlay.open{display:flex;}
-.modal{background:#fff;border-radius:12px;width:100%;max-width:860px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
-.modal-head{padding:16px 20px;border-bottom:0.5px solid #eee;display:flex;justify-content:space-between;align-items:center;background:#fafafa;}
-.modal-ch-name{font-size:16px;font-weight:700;color:#1a1a1a;}
-.modal-kpis{display:flex;gap:20px;align-items:center;}
-.mk{text-align:right;}
-.mk-val{font-size:14px;font-weight:700;}
-.mk-lbl{font-size:9px;color:#aaa;}
-.modal-close{width:28px;height:28px;border-radius:50%;background:#f0eeea;border:none;cursor:pointer;font-size:14px;color:#666;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.modal-close:hover{background:#e5e5e5;}
-.modal-body{padding:16px 20px;max-height:70vh;overflow-y:auto;}
-.modal-section{margin-bottom:16px;}
+/* Canal detail view */
+.modal-section{margin-bottom:20px;}
 .modal-section-ttl{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#aaa;margin-bottom:8px;}
 .mtbl{width:100%;border-collapse:collapse;font-size:11.5px;}
-.mtbl th{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;padding:5px 8px;border-bottom:0.5px solid #eee;text-align:left;}
+.mtbl th{font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#aaa;padding:5px 10px;border-bottom:0.5px solid #eee;text-align:left;}
 .mtbl th.r{text-align:right;}
-.mtbl td{padding:6px 8px;border-bottom:0.5px solid #f5f4f0;vertical-align:middle;}
+.mtbl td{padding:7px 10px;border-bottom:0.5px solid #f5f4f0;vertical-align:middle;}
 .mtbl td.r{text-align:right;}
+.mtbl tr:nth-child(even) td{background:#fafaf8;}
 .mtbl tr:last-child td{border-bottom:none;}
-.mtbl tr:hover td{background:#fafaf8;}
-.ch-link{cursor:pointer;text-decoration:none;color:inherit;border-bottom:1px dashed #ccc;padding-bottom:1px;}
-.ch-link:hover{color:#1a56a8;border-bottom-color:#1a56a8;}
+.mtbl tr:hover td{background:#f5f4f0;}
+.ch-link{cursor:pointer;color:#1a56a8;font-weight:600;border-bottom:1px dashed #93c5fd;padding-bottom:1px;}
+.ch-link:hover{color:#1e40af;border-bottom-color:#1e40af;}
+.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#555;background:#fff;border:0.5px solid #ddd;border-radius:6px;padding:6px 12px;cursor:pointer;margin-bottom:16px;}
+.back-btn:hover{background:#f5f4f0;color:#1a1a1a;}
 </style>
 </head>
 <body>
@@ -559,10 +550,20 @@ function _bdg(v){return v>=0.15?'bg':v>=0.05?'bb':'br';}
 
 let _fatTotal = 0, _chsMine = [], _chsOth = [];
 
-// ── Modal ───────────────────────────────────────────────────────────────────
+// ── Canal detail view ────────────────────────────────────────────────────────
 let _skusGlobal = [];
 
 function openModal(chName) {
+  const skus = _skusGlobal;
+  if (!skus.length) return;
+
+  // Hide main dashboard, show detail view
+  document.getElementById('dashboard').style.display = 'none';
+  const detail = document.getElementById('ch-detail');
+  detail.style.display = 'block';
+  window.scrollTo(0,0);
+
+
   const skus = _skusGlobal;
   if (!skus.length) return;
 
@@ -672,36 +673,114 @@ function openModal(chName) {
     </div>
   `;
 
-  document.getElementById('ch-modal').classList.add('open');
-  document.getElementById('ch-modal-inner').scrollTop = 0;
+  const isMine = ['Amazon','Magalu','Fast Shop','Tiktok Shop','Carrefour','Kabum','Itaú Shop','Martins Atacado'].includes(chName);
+
+  detail.innerHTML = `
+    <button class="back-btn" onclick="goBack()">← Voltar ao dashboard</button>
+
+    <div class="header">
+      <div>
+        <div class="h-eye">up2tech · ${isMine ? 'Meu canal' : 'Outro canal'}</div>
+        <div class="h-title">${chName}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:10px;color:#aaa">${chSkus.length} SKUs ativos neste canal</div>
+        <div><span class="h-badge">● Live — Google Sheets</span></div>
+      </div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi"><div class="kl">Faturamento</div><div class="kv">${_fmt(fat)}</div><div class="ka">${chSkus.length} SKUs</div></div>
+      <div class="kpi"><div class="kl">Margem bruta</div><div class="kv" style="color:${_clr(mg_pct)}">${_pct(mg_pct)}</div><div class="ka">${_fmt(mg_r)} gerados</div></div>
+      <div class="kpi"><div class="kl">Unidades vendidas</div><div class="kv">${Math.round(qtd).toLocaleString('pt-BR')}</div><div class="ka">no período</div></div>
+      <div class="kpi"><div class="kl">Ticket médio</div><div class="kv">R$ ${qtd>0?Math.round(fat/qtd).toLocaleString('pt-BR'):'-'}</div><div class="ka">por pedido</div></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+      <div>
+        <p class="slbl">Top categorias</p>
+        <div class="panel">
+          <table class="mtbl">
+            <thead><tr><th>Categoria</th><th class="r">Fat.</th><th class="r">Margem %</th><th class="r">Margem R$</th><th class="r">Qtd</th><th class="r">Ticket</th></tr></thead>
+            <tbody>${topDept.map(([d,v])=>`<tr>
+              <td style="font-weight:500">${d}</td>
+              <td class="r">${_fmt(v.fat)}</td>
+              <td class="r"><span class="badge ${bdgH(v.fat>0?v.mg_r/v.fat:0)}">${_pct(v.fat>0?v.mg_r/v.fat:0)}</span></td>
+              <td class="r" style="color:${v.mg_r>=0?'#16a34a':'#b91c1c'};font-weight:600">${_fmt(v.mg_r)}</td>
+              <td class="r">${Math.round(v.qtd).toLocaleString('pt-BR')}</td>
+              <td class="r">R$ ${v.qtd>0?Math.round(v.fat/v.qtd).toLocaleString('pt-BR'):'-'}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <p class="slbl">Top marcas</p>
+        <div class="panel">
+          <table class="mtbl">
+            <thead><tr><th>Marca</th><th class="r">Fat.</th><th class="r">Margem %</th><th class="r">Margem R$</th><th class="r">Qtd</th><th class="r">Ticket</th></tr></thead>
+            <tbody>${topMarca.map(([m,v])=>`<tr>
+              <td style="font-weight:500">${m}</td>
+              <td class="r">${_fmt(v.fat)}</td>
+              <td class="r"><span class="badge ${bdgH(v.fat>0?v.mg_r/v.fat:0)}">${_pct(v.fat>0?v.mg_r/v.fat:0)}</span></td>
+              <td class="r" style="color:${v.mg_r>=0?'#16a34a':'#b91c1c'};font-weight:600">${_fmt(v.mg_r)}</td>
+              <td class="r">${Math.round(v.qtd).toLocaleString('pt-BR')}</td>
+              <td class="r">R$ ${v.qtd>0?Math.round(v.fat/v.qtd).toLocaleString('pt-BR'):'-'}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    ${detratores.length > 0 ? `
+    <p class="slbl">Detratores de margem — SKUs com margem negativa</p>
+    <div class="panel" style="margin-bottom:20px;">
+      <table class="mtbl">
+        <thead><tr><th>Produto</th><th>Marca</th><th class="r">Fat. Canal</th><th class="r">Margem %</th><th class="r">Margem R$</th><th class="r">Qtd</th></tr></thead>
+        <tbody>${detratores.map(s=>`<tr>
+          <td style="font-weight:500">${s.produto}</td>
+          <td style="color:#555">${s.marca}</td>
+          <td class="r">${_fmt(s[chName])}</td>
+          <td class="r"><span class="badge br">${_pct(s.mg)}</span></td>
+          <td class="r" style="color:#b91c1c;font-weight:600">${_fmt(s[chName]*s.mg)}</td>
+          <td class="r">${Math.round(s.qtd).toLocaleString('pt-BR')}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>` : ''}
+
+    <p class="slbl">Top SKUs — ${chName}</p>
+    <div class="panel">
+      <table class="mtbl">
+        <thead><tr><th>#</th><th>Produto</th><th>Marca</th><th>Categ.</th><th class="r">Fat. Canal</th><th class="r">Margem %</th><th class="r">Margem R$</th><th class="r">Qtd</th><th class="r">Ticket</th></tr></thead>
+        <tbody>${topSKUs.map((s,i)=>`<tr>
+          <td style="color:#ccc;font-size:10px">${i+1}</td>
+          <td style="font-weight:500;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.produto}</td>
+          <td style="color:#555">${s.marca}</td>
+          <td style="color:#aaa;font-size:10px">${s.dept}</td>
+          <td class="r">${_fmt(s[chName])}</td>
+          <td class="r"><span class="badge ${bdgH(s.mg)}">${_pct(s.mg)}</span></td>
+          <td class="r" style="color:${s[chName]*s.mg>=0?'#16a34a':'#b91c1c'};font-weight:600">${_fmt(s[chName]*s.mg)}</td>
+          <td class="r">${Math.round(s.qtd).toLocaleString('pt-BR')}</td>
+          <td class="r">R$ ${s.qtd>0?Math.round(s[chName]/s.qtd).toLocaleString('pt-BR'):'-'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+
+    <button class="back-btn" onclick="goBack()" style="margin-top:8px">← Voltar ao dashboard</button>
+
+    <div class="footer-bar" style="margin-top:12px">Dados de ${chName} · up2tech.com.br</div>
+  `;
 }
 
-function closeModal(e) {
-  if (e.target === document.getElementById('ch-modal'))
-    document.getElementById('ch-modal').classList.remove('open');
+function goBack() {
+  document.getElementById('ch-detail').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  window.scrollTo(0,0);
 }
 
 load();
 </script>
-<!-- Canal detail modal -->
-<div class="modal-overlay" id="ch-modal" onclick="closeModal(event)">
-  <div class="modal" id="ch-modal-inner">
-    <div class="modal-head">
-      <div>
-        <div class="modal-ch-name" id="modal-ch-name">Canal</div>
-        <div style="font-size:11px;color:#aaa;margin-top:2px" id="modal-ch-sub"></div>
-      </div>
-      <div class="modal-kpis">
-        <div class="mk"><div class="mk-val" id="modal-fat">-</div><div class="mk-lbl">Faturamento</div></div>
-        <div class="mk"><div class="mk-val" id="modal-mg">-</div><div class="mk-lbl">Margem</div></div>
-        <div class="mk"><div class="mk-val" id="modal-qtd">-</div><div class="mk-lbl">Unidades</div></div>
-        <div class="mk"><div class="mk-val" id="modal-ticket">-</div><div class="mk-lbl">Ticket médio</div></div>
-      </div>
-      <button class="modal-close" onclick="document.getElementById('ch-modal').classList.remove('open')">✕</button>
-    </div>
-    <div class="modal-body" id="modal-body"></div>
-  </div>
-</div>
+<!-- Canal detail view (inline) -->
+<div id="ch-detail" style="display:none"></div>
 
 </body>
 </html>
