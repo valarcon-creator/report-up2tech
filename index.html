@@ -182,6 +182,20 @@ async function load() {
       if (obj.produto) skus.push(obj);
     }
     if (skus.length===0) throw new Error('Nenhum SKU encontrado.');
+    // Store globals for SE toggle
+    _chCalc = chCalc;
+    _chNoSE = chNoSE;
+    _chsMine = CHANNELS_MINE;
+    _chsOth  = CHANNELS_OTHERS;
+    _fatTotal = fatMine + fatOth;
+    _chMine = {
+      all:  grpMg(skus, CHANNELS_MINE),
+      nose: grpMg(noSE, CHANNELS_MINE),
+    };
+    _chOth = {
+      all:  grpMg(skus, CHANNELS_OTHERS),
+      nose: grpMg(noSE, CHANNELS_OTHERS),
+    };
 
     // ── Totals ──────────────────────────────────────────────────────────────
     const totalFat = skus.reduce((s,r)=>s+r.fat,0);
@@ -276,12 +290,13 @@ async function load() {
       const at = d.meta>0?d.fat/d.meta:0;
       const bw = Math.min(100,share*100).toFixed(1);
       const warn = d.pct<0?' <span style="color:#b91c1c">⚠</span>':'';
-      return `<tr>
+      const rowId = 'chrow-'+ch.replace(/\s/g,'-').replace(/[^\w-]/g,'');
+      return `<tr id="${rowId}">
         <td style="font-weight:500">${ch}${warn}</td>
-        <td class="r">${fmt(d.fat)}</td>
+        <td class="r ch-fat">${fmt(d.fat)}</td>
         <td class="r"><span class="badge ${bdg(d.pct)}">${pct(d.pct)}</span></td>
-        <td class="r">${fmtN(d.qtd)}</td>
-        <td><div class="share-bar"><div class="sbar"><div class="sbfill" style="width:${bw}%;background:${d.pct>=0.15?'#16a34a':d.pct>=0.05?'#3b82f6':'#ef4444'}"></div></div><span class="spct">${(share*100).toFixed(1)}%</span></div></td>
+        <td class="r ch-qtd">${fmtN(d.qtd)}</td>
+        <td><div class="share-bar"><div class="sbar"><div class="sbfill" style="width:${bw}%;background:${d.pct>=0.15?'#16a34a':d.pct>=0.05?'#3b82f6':'#ef4444'}"></div></div><span class="spct ch-share">${(share*100).toFixed(1)}%</span></div></td>
         <td class="r" style="font-size:10px;color:#aaa">${at>0?(at*100).toFixed(1)+'%':'-'}</td>
       </tr>`;
     };
@@ -305,6 +320,20 @@ async function load() {
       <div class="kpi alert"><div class="kl">Margem destruída (SE)</div><div class="kv" style="color:#b91c1c">${fmt(seTotal.mg_r)}</div><div class="ka">Mg. média ${seTotal.fat>0?pct(seTotal.mg_r/seTotal.fat):'—'}</div></div>
     </div>
 
+    <!-- SE Toggle button -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+      <div style="background:#fff;border:0.5px solid #e5e5e5;border-radius:20px;display:inline-flex;overflow:hidden;">
+        <button id="se-btn-nose" onclick="toggleSE('nose')"
+          style="padding:4px 12px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;background:#f0f7f0;color:#16a34a;border:none;cursor:pointer;border-right:0.5px solid #e5e5e5;">
+          s/ iPhone SE
+        </button>
+        <button id="se-btn-wse" onclick="toggleSE('wse')"
+          style="padding:4px 12px;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;background:#fff;color:#aaa;border:none;cursor:pointer;">
+          c/ iPhone SE
+        </button>
+      </div>
+    </div>
+
     <!-- Meus canais x Outros canais -->
     <p class="slbl">Performance dos canais</p>
     <div class="two-grp">
@@ -313,11 +342,11 @@ async function load() {
           <span class="grp-title">Meus canais</span>
           <div class="grp-summary">
             <div>
-              <div class="gs-fat">${fmt(fatMine)}</div>
-              <div class="gs-share">${(fatMine/fatTotal*100).toFixed(1)}% do total</div>
+              <div class="gs-fat" id="mine-fat">${fmt(fatMine)}</div>
+              <div class="gs-share" id="mine-share">${(fatMine/fatTotal*100).toFixed(1)}% do total</div>
             </div>
             <div>
-              <div class="gs-mg" style="color:${clr(mgMine)}">${pct(mgMine)}</div>
+              <div class="gs-mg" id="mine-mg" style="color:${clr(mgMine)}">${pct(mgMine)}</div>
               <div class="gs-share">margem ponderada</div>
             </div>
           </div>
@@ -332,11 +361,11 @@ async function load() {
           <span class="grp-title">Outros canais</span>
           <div class="grp-summary">
             <div>
-              <div class="gs-fat">${fmt(fatOth)}</div>
-              <div class="gs-share">${(fatOth/fatTotal*100).toFixed(1)}% do total</div>
+              <div class="gs-fat" id="oth-fat">${fmt(fatOth)}</div>
+              <div class="gs-share" id="oth-share">${(fatOth/fatTotal*100).toFixed(1)}% do total</div>
             </div>
             <div>
-              <div class="gs-mg" style="color:${clr(mgOth)}">${pct(mgOth)}</div>
+              <div class="gs-mg" id="oth-mg" style="color:${clr(mgOth)}">${pct(mgOth)}</div>
               <div class="gs-share">margem ponderada</div>
             </div>
           </div>
@@ -348,41 +377,6 @@ async function load() {
       </div>
     </div>
 
-    <!-- Comparativo SE -->
-    <p class="slbl">Comparativo de margem — com e sem iPhone SE</p>
-    <div class="comp-panel">
-      <div class="comp-tabs">
-        <button class="ctab nose" id="btn-nose" onclick="tog('nose')">Excluindo iPhone SE</button>
-        <button class="ctab" id="btn-wse" onclick="tog('wse')">Incluindo iPhone SE</button>
-      </div>
-      <div id="pn" class="comp-body">
-        <div class="comp-vs">
-          <div><div class="cv-lbl">Meus canais</div><div class="cv-num" style="color:#16a34a">${pct(comp.mine_nose.pct)}</div><div class="cv-sub">Fat. ${fmt(comp.mine_nose.fat)}</div></div>
-          <div class="cv-sep">vs</div>
-          <div><div class="cv-lbl">Outros canais</div><div class="cv-num" style="color:#555">${pct(comp.oth_nose.pct)}</div><div class="cv-sub">Fat. ${fmt(comp.oth_nose.fat)}</div></div>
-        </div>
-        <div class="msg-box msg-g">✓ Sem iPhone SE, meus canais superam os outros em margem.</div>
-        <div class="comp-ch-grid">
-          <div><div class="col-hdr">Meus canais (s/ SE)</div>${compRows(CHANNELS_MINE,chNoSE)}</div>
-          <div><div class="col-hdr">Outros canais (s/ SE)</div>${compRows(CHANNELS_OTHERS,chNoSE)}</div>
-        </div>
-        <div class="comp-note">TikTok sem SE: ${pct(chNoSE['Tiktok Shop']?.pct||0)} · Carrefour sem SE: ${pct(chNoSE['Carrefour']?.pct||0)}</div>
-      </div>
-      <div id="pw" class="comp-body" style="display:none">
-        <div class="comp-vs">
-          <div><div class="cv-lbl">Meus canais</div><div class="cv-num" style="color:#b91c1c">${pct(comp.mine_all.pct)}</div><div class="cv-sub">Fat. ${fmt(comp.mine_all.fat)}</div></div>
-          <div class="cv-sep">vs</div>
-          <div><div class="cv-lbl">Outros canais</div><div class="cv-num" style="color:#555">${pct(comp.oth_all.pct)}</div><div class="cv-sub">Fat. ${fmt(comp.oth_all.fat)}</div></div>
-        </div>
-        <div class="msg-box msg-a">⚠ Com iPhone SE, meus canais ficam abaixo — o SE distorce a comparação.</div>
-        <div class="comp-ch-grid">
-          <div><div class="col-hdr">Meus canais (c/ SE)</div>${compRows(CHANNELS_MINE,chCalc)}</div>
-          <div><div class="col-hdr">Outros canais (c/ SE)</div>${compRows(CHANNELS_OTHERS,chCalc)}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="divider"></div>
 
     <!-- Top categorias meus canais -->
     <p class="slbl">Top categorias — meus canais</p>
@@ -397,6 +391,25 @@ async function load() {
             <td class="r" style="color:${v.mg_r>=0?'#16a34a':'#b91c1c'};font-weight:600">${fmt(v.mg_r)}</td>
             <td class="r">${Math.round(v.units).toLocaleString('pt-BR')}</td>
             <td class="r">R$ ${v.units>0?Math.round(v.fat/v.units).toLocaleString('pt-BR'):'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Top marcas (agora primeiro) -->
+    <p class="slbl">Ranking de faturamento por marca</p>
+    <div class="panel">
+      <table class="data-tbl">
+        <thead><tr><th style="width:20px"></th><th>Marca</th><th class="r">Faturamento</th><th class="r">Margem %</th><th class="r">Margem R$</th><th class="r">Qtd. Unid.</th><th class="r">Ticket Médio</th></tr></thead>
+        <tbody>${topMarca.map(([m,v],i)=>`
+          <tr>
+            <td class="rank-n">${i+1}</td>
+            <td style="font-weight:500">${m}</td>
+            <td class="r">${fmt(v.fat)}</td>
+            <td class="r"><span class="badge ${bdg(v.mg_r/v.fat)}">${pct(v.mg_r/v.fat)}</span></td>
+            <td class="r" style="color:${v.mg_r>=0?'#16a34a':'#b91c1c'};font-weight:600">${fmt(v.mg_r)}</td>
+            <td class="r">${Math.round(v.qtd).toLocaleString('pt-BR')}</td>
+            <td class="r">R$ ${v.qtd>0?Math.round(v.fat/v.qtd).toLocaleString('pt-BR'):'—'}</td>
           </tr>`).join('')}
         </tbody>
       </table>
@@ -423,25 +436,6 @@ async function load() {
       </table>
     </div>
 
-    <!-- Top marcas -->
-    <p class="slbl">Ranking de faturamento por marca</p>
-    <div class="panel">
-      <table class="data-tbl">
-        <thead><tr><th style="width:20px"></th><th>Marca</th><th class="r">Faturamento</th><th class="r">Margem %</th><th class="r">Margem R$</th><th class="r">Qtd. Unid.</th><th class="r">Ticket Médio</th></tr></thead>
-        <tbody>${topMarca.map(([m,v],i)=>`
-          <tr>
-            <td class="rank-n">${i+1}</td>
-            <td style="font-weight:500">${m}</td>
-            <td class="r">${fmt(v.fat)}</td>
-            <td class="r"><span class="badge ${bdg(v.mg_r/v.fat)}">${pct(v.mg_r/v.fat)}</span></td>
-            <td class="r" style="color:${v.mg_r>=0?'#16a34a':'#b91c1c'};font-weight:600">${fmt(v.mg_r)}</td>
-            <td class="r">${Math.round(v.qtd).toLocaleString('pt-BR')}</td>
-            <td class="r">R$ ${v.qtd>0?Math.round(v.fat/v.qtd).toLocaleString('pt-BR'):'—'}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
-
     <div class="footer-bar">Dados lidos do Google Sheets · ${now} · up2tech.com.br &nbsp;|&nbsp; <span style="color:#3b82f6">■</span> Meus canais &nbsp; <span style="color:#999">■</span> Outros</div>`;
 
     document.getElementById('loading').style.display='none';
@@ -456,11 +450,76 @@ async function load() {
 }
 
 function tog(mode) {
-  document.getElementById('pn').style.display=mode==='nose'?'block':'none';
-  document.getElementById('pw').style.display=mode==='wse'?'block':'none';
-  document.getElementById('btn-nose').className='ctab'+(mode==='nose'?' nose':'');
-  document.getElementById('btn-wse').className='ctab'+(mode==='wse'?' wse':'');
+  // kept for compatibility
 }
+
+let _seMode = 'nose';
+let _chCalc = null;
+let _chNoSE = null;
+let _chMine = null;
+let _chOth  = null;
+let _fatMine = 0, _fatOth = 0;
+
+function toggleSE(mode) {
+  _seMode = mode;
+  const btnNose = document.getElementById('se-btn-nose');
+  const btnWse  = document.getElementById('se-btn-wse');
+  if (mode === 'nose') {
+    btnNose.style.background='#f0f7f0'; btnNose.style.color='#16a34a';
+    btnWse.style.background='#fff';     btnWse.style.color='#aaa';
+  } else {
+    btnWse.style.background='#fff3e0';  btnWse.style.color='#b45309';
+    btnNose.style.background='#fff';    btnNose.style.color='#aaa';
+  }
+  // Update channel rows
+  updateChannelRows();
+}
+
+function updateChannelRows() {
+  if (!_chCalc) return;
+  const data = _seMode === 'nose' ? _chNoSE : _chCalc;
+  const mineData = _seMode === 'nose' ? _chMine.nose : _chMine.all;
+  const othData  = _seMode === 'nose' ? _chOth.nose  : _chOth.all;
+
+  // Update group totals
+  document.getElementById('mine-fat').textContent = _fmt(mineData.fat);
+  document.getElementById('mine-share').textContent = (_fatTotal>0?(mineData.fat/_fatTotal*100).toFixed(1):'0.0')+'% do total';
+  document.getElementById('mine-mg').textContent = _pct(mineData.pct);
+  document.getElementById('mine-mg').style.color = _clr(mineData.pct);
+  document.getElementById('oth-fat').textContent = _fmt(othData.fat);
+  document.getElementById('oth-share').textContent = (_fatTotal>0?(othData.fat/_fatTotal*100).toFixed(1):'0.0')+'% do total';
+  document.getElementById('oth-mg').textContent = _pct(othData.pct);
+  document.getElementById('oth-mg').style.color = _clr(othData.pct);
+
+  // Update each channel row
+  const allChs = [..._chsMine, ..._chsOth];
+  allChs.forEach(ch => {
+    const d = data[ch] || {fat:0,pct:0,qtd:0};
+    const isMine = _chsMine.includes(ch);
+    const groupFat = isMine ? mineData.fat : othData.fat;
+    const share = groupFat>0 ? d.fat/groupFat : 0;
+    const el = document.getElementById('chrow-'+ch.replace(/\s/g,'-').replace(/[^\w-]/g,''));
+    if (!el) return;
+    el.querySelector('.ch-fat').textContent = _fmt(d.fat);
+    const badge = el.querySelector('.badge');
+    badge.textContent = _pct(d.pct);
+    badge.className = 'badge '+_bdg(d.pct);
+    el.querySelector('.ch-qtd').textContent = _fmtN(d.qtd||0);
+    el.querySelector('.ch-share').textContent = (share*100).toFixed(1)+'%';
+    const bar = el.querySelector('.sbfill');
+    bar.style.width = Math.min(100,share*100).toFixed(1)+'%';
+    bar.style.background = d.pct>=0.15?'#16a34a':d.pct>=0.05?'#3b82f6':'#ef4444';
+  });
+}
+
+// Utility copies for use in updateChannelRows
+function _fmt(n){if(Math.abs(n)>=1e6)return'R$ '+(n/1e6).toFixed(1)+'M';if(Math.abs(n)>=1e3)return'R$ '+Math.round(n/1e3)+'K';return'R$ '+Math.round(n);}
+function _fmtN(n){return n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'K':Math.round(n).toString();}
+function _pct(n){return(n*100).toFixed(1)+'%';}
+function _clr(v){return v>=0.15?'#16a34a':v>=0.05?'#b45309':'#b91c1c';}
+function _bdg(v){return v>=0.15?'bg':v>=0.05?'bb':'br';}
+
+let _fatTotal = 0, _chsMine = [], _chsOth = [];
 
 load();
 </script>
