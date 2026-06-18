@@ -95,7 +95,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f4f0;color:#1a1a1
 
 <script>
 const SHEET_ID   = '1hnxVpZRALknZCN7Cp9LwWBOHB9CpNV8cD156ZqhoMjg';
-const SHEET_NAME = 'data (1)';
+const SHEET_NAME = 'Dashboard';
 
 // HARDCODED COLUMN MAP (confirmed from CSV analysis)
 const COL = { SKU:0, QTD:1, FAT:2, CURVA:4, PROD:5, MARCA:6, DEPT:7, MG:32 };
@@ -155,28 +155,8 @@ async function load() {
   try {
     const rows = await fetchRows();
 
-    // ── Header KPIs from rows 22 & 24 (index 21 & 23)
-    // Row 22: Margem % per channel (cols 1-16)
-    // Row 24: Faturamento per channel (cols 1-16)
-    // Channel order: ML, Amazon, Shopee, VV, Magalu, Shopify, Casa&Video,
-    //   Fast Shop, Tiktok, Le Biscuit, Carrefour, Ri Happy, Kabum, Itaú Shop, Bradesco, Martins
-    const HDR_CH_ORDER = [
-      'Mercado Livre','Amazon','Shopee','Via Varejo','Magalu','Shopify',
-      'Casa & Video','Fast Shop','Tiktok Shop','Le Biscuit',
-      'Carrefour','Ri Happy','Kabum','Itaú Shop','Bradesco Shop','Martins Atacado'
-    ];
-    const rowMg  = rows[21] || [];  // row 22 (index 21): margem per channel
-    const rowFat = rows[23] || [];  // row 24 (index 23): fat per channel
+    // Header KPI parsing skipped — using SKU-level calc (more reliable)
     const chHdr = {};
-    // cols 1-16 in these rows = channels in HDR_CH_ORDER
-    HDR_CH_ORDER.forEach((chName, i) => {
-      const fatRaw = toNum(rowFat[i + 1]);
-      const mgRaw  = toNum(rowMg[i + 1]);
-      // gviz returns % cells as decimals (e.g. 0.2033); string "20,33%" → toNum gives 20.33
-      const mg = Math.abs(mgRaw) > 1 ? mgRaw/100 : mgRaw;
-      const meta = CH_DEF.find(c=>c.name===chName)?.meta || 0;
-      chHdr[chName] = { fat: fatRaw, meta, mg };
-    });
 
     // ── Period: rows[0] col0=start, col2=end
     const periodStart = String(rows[0]?.[0]||'').replace('Data inicial','').trim() || '';
@@ -220,16 +200,12 @@ async function load() {
       chCalc[ch] = { fat, mg_r, pct: fat>0?mg_r/fat:0 };
     });
 
-    // Merged channel data: header fat/mg wins when available
+    // Use SKU-level calc for fat+margem (reliable), meta from CH_DEF
     const chData = {};
     ALL_CH.forEach(ch => {
-      const h = chHdr[ch]||{};
       const c = chCalc[ch]||{};
-      chData[ch] = {
-        fat:   (h.fat>0) ? h.fat : c.fat||0,
-        margem:(h.mg!==0) ? h.mg : c.pct||0,
-        meta:  h.meta||0,
-      };
+      const meta = CH_DEF.find(d=>d.name===ch)?.meta || 0;
+      chData[ch] = { fat: c.fat||0, margem: c.pct||0, meta };
     });
 
     const isSE = s => s.produto.toUpperCase().includes('IPHONE') && / SE[\s\d]/.test(s.produto.toUpperCase());
