@@ -657,57 +657,7 @@ function openModal(chName) {
     <button class="back-btn" onclick="goBack()" style="margin-top:12px">\u2190 Voltar ao dashboard</button>
     <div class="footer-bar" style="margin-top:12px">Dados de ${chName} &middot; up2tech.com.br</div>
   `;
-}function openModal(chName) {
-  const skus = _skusGlobal;
-  if (!skus.length) return;
-
-  // Hide main dashboard, show detail view
-  document.getElementById('dashboard').style.display = 'none';
-  const detail = document.getElementById('ch-detail');
-  detail.style.display = 'block';
-  window.scrollTo(0,0);
-
-  const chSkus = skus.filter(s => s[chName] > 0);
-  const fat    = chSkus.reduce((a,s) => a + s[chName], 0);
-  const mg_r   = chSkus.reduce((a,s) => a + s[chName] * s.mg, 0);
-  const qtd    = chSkus.reduce((a,s) => a + s.qtd, 0);
-  const mg_pct = fat > 0 ? mg_r / fat : 0;
-
-  // KPIs computed above, used directly in innerHTML below
-
-  // Top SKUs
-  const topSKUs = [...chSkus].sort((a,b) => b[chName] - a[chName]).slice(0, 15);
-
-  // Top categorias
-  const byDept = {};
-  chSkus.forEach(s => {
-    const f = s[chName];
-    if (!byDept[s.dept]) byDept[s.dept] = {fat:0, mg_r:0, qtd:0};
-    byDept[s.dept].fat  += f;
-    byDept[s.dept].mg_r += f * s.mg;
-    byDept[s.dept].qtd  += s.qtd;
-  });
-  const topDept = Object.entries(byDept).sort((a,b) => b[1].fat - a[1].fat).slice(0, 6);
-
-  // Top marcas
-  const byMarca = {};
-  chSkus.forEach(s => {
-    const f = s[chName];
-    if (!byMarca[s.marca]) byMarca[s.marca] = {fat:0, mg_r:0, qtd:0};
-    byMarca[s.marca].fat  += f;
-    byMarca[s.marca].mg_r += f * s.mg;
-    byMarca[s.marca].qtd  += s.qtd;
-  });
-  const topMarca = Object.entries(byMarca).sort((a,b) => b[1].fat - a[1].fat).slice(0, 6);
-
-  // Detratores (margem negativa)
-  const detratores = chSkus.filter(s => s.mg < 0).sort((a,b) => (a[chName]*a.mg) - (b[chName]*b.mg));
-
-  const bdgH = v => v>=0.15?'bg':v>=0.05?'bb':'br';
-
-
-
-function goBack() {
+}function goBack() {
   document.getElementById('ch-detail').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
   window.scrollTo(0,0);
