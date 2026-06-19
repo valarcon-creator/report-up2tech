@@ -116,7 +116,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwMS-oIkogIBhRp
 const AMZN = { date:2, sku:11, prod:10, qty:14, val:16, status:4 };
 const MGLU = { date:0, sku:5,  prod:6,  qty:7,  val:8  };
 const ANMK = { date:0, mkt:1,  sku:21,  prod:18, qty:19, val:15, status:11, discount:57 };
-const DASH = { sku:0, custo:30 }; // col AE = index 30 (0-based, A=0...Z=25, AA=26...AE=30)
+const DASH = { sku:0, mg_pct:32 }; // col AG = index 32 (Margem Comercial %)
 
 // AnyMarket canal → my channel name
 const ANMK_CH = {
@@ -227,19 +227,21 @@ async function loadAll() {
     }
     if (hdrIdx < 0) hdrIdx = 36; // last fallback
     _costMap = {};
-    let custoFound = 0;
+    let mgFound = 0;
     for (let i = hdrIdx+1; i < dashRows.length; i++) {
       const r = dashRows[i];
       if (!r || r.length === 0) continue;
       const sku = toNum(r[0]);
-      const custo = toNum(r[DASH.custo]);
-      if (sku > 0) {
-        _costMap[sku] = custo;
-        if (custo > 0) custoFound++;
-      }
+      if (sku <= 0) continue;
+      // col AG (32) = Margem Comercial % — pode chegar como decimal (0.073) ou percentual (7.3)
+      let mg = r[DASH.mg_pct];
+      if (mg === null || mg === undefined || String(mg).includes('N/A')) { mg = 0; }
+      else { mg = toNum(mg); if (mg > 1) mg = mg / 100; } // normaliza para decimal
+      _costMap[sku] = mg; // reusando _costMap para armazenar margem %
+      if (mg !== 0) mgFound++;
     }
-    prog.textContent = `Custos: ${Object.keys(_costMap).length} SKUs (${custoFound} com custo > 0)`;
-    console.log('CostMap sample:', Object.entries(_costMap).slice(0,5));
+    prog.textContent = `Margens: ${Object.keys(_costMap).length} SKUs (${mgFound} com margem ≠ 0)`;
+    console.log('MgPctMap sample:', Object.entries(_costMap).slice(0,5));
     console.log('HdrIdx:', hdrIdx, 'First data row:', dashRows[hdrIdx+1]?.slice(0,5));
 
     // 2. Load Amazon
@@ -345,8 +347,8 @@ function aggregate(orders) {
   const marcaMap = {};
 
   for (const o of orders) {
-    const custo = (_costMap[o.sku] || 0) * o.qty;
-    const mg_r  = o.val - custo;
+    const mg_pct_sku = _costMap[o.sku] || 0;
+    const mg_r  = o.val * mg_pct_sku;
 
     // Canal
     if (!chMap[o.canal]) chMap[o.canal] = {fat:0, mg_r:0, qtd:0, orders:0};
@@ -522,16 +524,16 @@ function openChannel(chName) {
   if (!orders.length) return;
 
   const fat   = orders.reduce((s,o)=>s+o.val, 0);
-  const mg_r  = orders.reduce((s,o)=>s+(o.val - (_costMap[o.sku]||0)*o.qty), 0);
+  const mg_r  = orders.reduce((s,o)=>s+(o.val * (_costMap[o.sku]||0)), 0);
   const qtd   = orders.reduce((s,o)=>s+o.qty, 0);
   const mg_pct= fat>0?mg_r/fat:0;
 
   const skuMap = {};
   for (const o of orders) {
-    const custo = (_costMap[o.sku]||0)*o.qty;
+    const mg_pct_sku = _costMap[o.sku] || 0;
     if (!skuMap[o.sku]) skuMap[o.sku]={fat:0,mg_r:0,qtd:0,prod:o.prod};
     skuMap[o.sku].fat  += o.val;
-    skuMap[o.sku].mg_r += o.val - custo;
+    skuMap[o.sku].mg_r += o.val * mg_pct_sku;
     skuMap[o.sku].qtd  += o.qty;
   }
   Object.values(skuMap).forEach(v=>{ v.mg_pct = v.fat>0?v.mg_r/v.fat:0; });
