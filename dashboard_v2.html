@@ -116,7 +116,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwMS-oIkogIBhRp
 const AMZN = { date:2, sku:11, prod:10, qty:14, val:16, status:4 };
 const MGLU = { date:0, sku:5,  prod:6,  qty:7,  val:8  };
 const ANMK = { date:0, mkt:1,  sku:21,  prod:18, qty:19, val:15, status:11, discount:57 };
-const DASH = { sku:0, custo:29 }; // col AE = index 29 (0-based from SKU row)
+const DASH = { sku:0, custo:30 }; // col AE = index 30 (0-based, A=0...Z=25, AA=26...AE=30)
 
 // AnyMarket canal → my channel name
 const ANMK_CH = {
@@ -212,17 +212,35 @@ async function loadAll() {
     // 1. Load cost map from Dashboard tab
     prog.textContent = 'Carregando custos por SKU...';
     const dashRows = await fetchSheet('Dashboard');
-    // Find SKU header row
-    let hdrIdx = dashRows.findIndex(r => r[0] && String(r[0]).trim() === 'SKU');
-    if (hdrIdx < 0) hdrIdx = 26; // fallback
+    // Find SKU header row — look for row where col 0 = 'SKU'
+    let hdrIdx = -1;
+    for (let i = 0; i < dashRows.length; i++) {
+      const v = String(dashRows[i][0]||'').trim();
+      if (v === 'SKU') { hdrIdx = i; break; }
+    }
+    if (hdrIdx < 0) {
+      // fallback: find row where col0 is a large integer (first SKU row)
+      for (let i = 20; i < 40; i++) {
+        const v = toNum(dashRows[i]?.[0]);
+        if (v > 1000 && v < 99999) { hdrIdx = i - 1; break; }
+      }
+    }
+    if (hdrIdx < 0) hdrIdx = 36; // last fallback
     _costMap = {};
+    let custoFound = 0;
     for (let i = hdrIdx+1; i < dashRows.length; i++) {
       const r = dashRows[i];
+      if (!r || r.length === 0) continue;
       const sku = toNum(r[0]);
       const custo = toNum(r[DASH.custo]);
-      if (sku > 0) _costMap[sku] = custo;
+      if (sku > 0) {
+        _costMap[sku] = custo;
+        if (custo > 0) custoFound++;
+      }
     }
-    prog.textContent = `Custos carregados: ${Object.keys(_costMap).length} SKUs`;
+    prog.textContent = `Custos: ${Object.keys(_costMap).length} SKUs (${custoFound} com custo > 0)`;
+    console.log('CostMap sample:', Object.entries(_costMap).slice(0,5));
+    console.log('HdrIdx:', hdrIdx, 'First data row:', dashRows[hdrIdx+1]?.slice(0,5));
 
     // 2. Load Amazon
     prog.textContent = 'Carregando Amazon Database...';
